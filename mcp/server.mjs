@@ -120,11 +120,32 @@ const KEY = z.enum(["up", "down", "left", "right", "fire", "use", "run", "strafe
 
 // ---------------------------------------------------------------- MCP surface -------------
 const server = new McpServer({ name: "doom", version: "0.1.0" }, {
-  instructions: `You can play Doom. Loop: doom_look -> decide -> doom_press -> doom_look. Movement keys are held for
-hold_ms (default 400ms; a 90° turn is about 700ms of left/right; a corridor step is 300-600ms of up). Fire with "fire"
-(hold_ms 150 per shot). Open doors and hit switches with "use" while facing them. Read the ASCII screen: walls are
-mid-tone textures, the sky is dark, enemies are small bright/dark blobs that move between looks, the bottom 3 rows are
-the HUD. Narrate briefly what you see and intend, in your normal voice.`,
+  instructions: `You can play Doom (E1M1 of Freedoom, a Doom clone) through these tools. PLAYBOOK, follow it:
+
+LOOP: doom_look -> doom_say (one line) -> doom_press -> read the result -> repeat. Every doom_press result starts with
+"moved N units, turned D degrees" and, if you did not move while pressing up/down, "BLOCKED". Trust those numbers over
+your reading of the picture.
+
+MOVEMENT FACTS: "up" for 500ms walks about 150-200 units in open space. "left"/"right" for 350ms turns about 45
+degrees; 700ms is about 90. Angle 0 = east, 90 = north, 180 = west, 270 = south. Position x,y is in map units.
+
+WHEN BLOCKED: do not press up again. Turn 90 degrees (700ms) toward the side of the screen that looks more open
+(more varied texture, darker distance), look, then walk. If blocked twice in a row, call doom_map.
+
+READING THE SCREEN: the 80x24 picture is a luminance ramp (space . : - = + * # % @ from dark to bright). Far away
+is darker, near walls are brighter and fill more of the frame. A flat band of one repeated character across the
+middle rows = a wall right in front of you. Sky (very dark, top rows) means an open outdoor area. Small clusters
+that change position between looks are enemies. The bottom 3 rows are the HUD; ignore them.
+
+AUTOMAP: doom_map returns the automap as ASCII, north-up, bright lines are walls, you are the arrow at the center.
+Pick a direction with open space, convert it to a compass heading, and turn to it using the angle numbers.
+
+FIGHTING: if health drops between looks, something is shooting you. Turn toward it (enemies are usually the small
+moving cluster), press ["fire"] with hold_ms 300 a few times, strafe with strafel/strafer. Doors: face them and
+press ["use"] 200ms. Switches: same.
+
+GOAL: explore, kill what you meet, find the exit (a small room with a switch), and keep the commentary going
+with doom_say before each move: calm, first person, Claude Code spinner voice, coding metaphors welcome.`,
 });
 
 server.registerTool("doom_start", {
@@ -169,10 +190,17 @@ server.registerTool("doom_press", {
 }, async ({ keys, hold_ms }) => {
   if (!eng) return { content: [{ type: "text", text: "Doom is not running. Call doom_start first." }] };
   toWatcher(`T press ${keys.join("+")} ${hold_ms}ms`);
+  const before = { x: +st.stats.x || 0, y: +st.stats.y || 0, a: +st.stats.angle || 0 };
   const end = Date.now() + hold_ms;
   while (Date.now() < end) { for (const k of keys) send(`k ${k}`); await sleep(60); }   // engine auto-releases 180ms after last repeat
-  await sleep(300);
-  return { content: [{ type: "text", text: await look() }] };
+  await sleep(350);
+  const dx = (+st.stats.x || 0) - before.x, dy = (+st.stats.y || 0) - before.y;
+  const moved = Math.round(Math.hypot(dx, dy));
+  let turned = ((+st.stats.angle || 0) - before.a + 540) % 360 - 180;
+  const wantedMove = keys.some(k => ["up", "down", "strafel", "strafer"].includes(k));
+  const blocked = wantedMove && moved < 8;
+  const head = `moved ${moved} units, turned ${Math.round(turned)} degrees${blocked ? ". BLOCKED: a wall or obstacle is in the way, turn before walking again" : ""}`;
+  return { content: [{ type: "text", text: head + "\n" + await look() }] };
 });
 
 server.registerTool("doom_type", {
@@ -180,6 +208,21 @@ server.registerTool("doom_type", {
   description: "Type a string as keypresses (cheats: iddqd god mode, idkfa all weapons and keys, idclip walk through walls, idclev15 warp to E1M5).",
   inputSchema: { text: z.string().min(1).max(20) },
 }, async ({ text }) => { toWatcher(`T type ${text}`); send(`c ${text}`); await sleep(400); return { content: [{ type: "text", text: await look() }] }; });
+
+server.registerTool("doom_map", {
+  title: "Automap",
+  description: "Show the automap (north-up, walls as bright lines, you at the center) as 80x24 ASCII, plus your angle. Use when blocked or lost to pick an open direction.",
+  inputSchema: {},
+}, async () => {
+  if (!eng) return { content: [{ type: "text", text: "Doom is not running. Call doom_start first." }] };
+  toWatcher("T map");
+  send("k tab"); await sleep(150);
+  for (let i = 0; i < 6; i++) { send("k -"); await sleep(60); }     // zoom out so more of the level fits
+  await sleep(450);
+  const text = await look();
+  send("k tab"); await sleep(250);
+  return { content: [{ type: "text", text: "AUTOMAP (north up, you are the arrow at the center; bright = walls):\n" + text }] };
+});
 
 server.registerTool("doom_say", {
   title: "Say something to the players",

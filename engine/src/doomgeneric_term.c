@@ -227,11 +227,26 @@ static void emit_frame_ascii_to(char *dst, int c, int r, int colour, int snapsho
                 int sy0 = ((y - row0) * 2) * DOOMGENERIC_RESY / px_h;
                 int sy1 = sy0 + 1 < DOOMGENERIC_RESY ? sy0 + 1 : sy0;
                 int sx = (x - x0) * DOOMGENERIC_RESX / px_w;
-                uint32_t a = DG_ScreenBuffer[sy0 * DOOMGENERIC_RESX + sx];
-                uint32_t b = DG_ScreenBuffer[sy1 * DOOMGENERIC_RESX + sx];
-                int rr = (((a >> 16) & 255) + ((b >> 16) & 255)) / 2;
-                int gg = (((a >> 8) & 255) + ((b >> 8) & 255)) / 2;
-                int bb = ((a & 255) + (b & 255)) / 2;
+                int rr, gg, bb;
+                if (snapshot) {
+                    /* snapshots: brightest pixel in the whole source block, so 1px automap lines survive */
+                    int sxe = (x - x0 + 1) * DOOMGENERIC_RESX / px_w, sye = ((y - row0) * 2 + 2) * DOOMGENERIC_RESY / px_h;
+                    if (sxe > DOOMGENERIC_RESX) sxe = DOOMGENERIC_RESX;
+                    if (sye > DOOMGENERIC_RESY) sye = DOOMGENERIC_RESY;
+                    int best = -1; uint32_t bv = 0;
+                    for (int yy = sy0; yy < sye; yy++) for (int xx = sx; xx < sxe; xx++) {
+                        uint32_t v = DG_ScreenBuffer[yy * DOOMGENERIC_RESX + xx];
+                        int l = ((v >> 16) & 255) * 299 + ((v >> 8) & 255) * 587 + (v & 255) * 114;
+                        if (l > best) { best = l; bv = v; }
+                    }
+                    rr = (bv >> 16) & 255; gg = (bv >> 8) & 255; bb = bv & 255;
+                } else {
+                    uint32_t a = DG_ScreenBuffer[sy0 * DOOMGENERIC_RESX + sx];
+                    uint32_t b = DG_ScreenBuffer[sy1 * DOOMGENERIC_RESX + sx];
+                    rr = (((a >> 16) & 255) + ((b >> 16) & 255)) / 2;
+                    gg = (((a >> 8) & 255) + ((b >> 8) & 255)) / 2;
+                    bb = ((a & 255) + (b & 255)) / 2;
+                }
                 int lum = (rr * 299 + gg * 587 + bb * 114) / 1000;   /* 0..255 */
                 ch = RAMP[lum_lut[lum]];
                 /* brighten colour so dark ramp chars stay legible */
