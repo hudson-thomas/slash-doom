@@ -1,0 +1,7 @@
+node_modules/
+engine/doomgeneric/
+engine/build/
+engine/wads/*.wad
+engine/wads/*.zip
+.env
+*.log
