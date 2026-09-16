@@ -32,7 +32,7 @@ static unsigned int kq_w = 0, kq_r = 0;
 static uint32_t held_until[256];
 
 static volatile int cols = 0, rows = 0;
-enum { MODE_BLOCKS, MODE_ASCII, MODE_MONO };
+enum { MODE_BLOCKS, MODE_ASCII, MODE_MONO, MODE_BRAILLE };
 static volatile int mode = MODE_BLOCKS;
 static const char RAMP[] = " .:-=+*#%@";
 static unsigned char lum_lut[256]; /* gamma-stretched luminance -> ramp index */
@@ -105,6 +105,15 @@ static void *reader_thread(void *arg) {
             if (!strcmp(line + 2, "blocks")) mode = MODE_BLOCKS;
             else if (!strcmp(line + 2, "ascii")) mode = MODE_ASCII;
             else if (!strcmp(line + 2, "mono")) mode = MODE_MONO;
+            else if (!strcmp(line + 2, "braille")) mode = MODE_BRAILLE;
+        } else if (line[0] == 'c' && line[1] == ' ') {
+            /* type a string into Doom, e.g. "c iddqd" (cheats) */
+            for (const char *q = line + 2; *q; q++) {
+                int k = tolower((unsigned char)*q);
+                if (!isprint(k)) continue;
+                enqueue(1, (unsigned char)k);
+                enqueue(0, (unsigned char)k);
+            }
         } else if (line[0] == 'r') {
             int ms = atoi(line + 1);
             if (ms >= 30 && ms <= 2000) release_ms = ms;
@@ -233,6 +242,50 @@ static void emit_frame_ascii(int c, int r, int colour) {
     out_write(frame_buf, (size_t)(p - frame_buf));
 }
 
+/* Braille mode: 2x4 dots per cell, ordered dither on gamma-lifted luminance, fg = cell colour. */
+static const int BAYER[4][4] = { {0,8,2,10}, {12,4,14,6}, {3,11,1,9}, {15,7,13,5} };
+static void emit_frame_braille(int c, int r) {
+    int px_w = c * 2, px_h = r * 4;
+    if (px_w * 3 > px_h * 4) px_w = px_h * 4 / 3; else px_h = px_w * 3 / 4;
+    int cw = px_w / 2, ch_ = px_h / 4;
+    int cx0 = (c - cw) / 2, cy0 = (r - ch_) / 2;
+    static const int BIT[2][4] = { {0x01,0x02,0x04,0x40}, {0x08,0x10,0x20,0x80} };
+    char *p = frame_buf;
+    p += sprintf(p, "F %d\n", r);
+    for (int y = 0; y < r; y++) {
+        int prev_fg = -1;
+        for (int x = 0; x < c; x++) {
+            if (y < cy0 || y >= cy0 + ch_ || x < cx0 || x >= cx0 + cw) { *p++ = ' '; continue; }
+            int bits = 0; long sr = 0, sg = 0, sb = 0;
+            for (int dx = 0; dx < 2; dx++) for (int dy = 0; dy < 4; dy++) {
+                int px = (x - cx0) * 2 + dx, py = (y - cy0) * 4 + dy;
+                int sx = px * DOOMGENERIC_RESX / px_w, sy = py * DOOMGENERIC_RESY / px_h;
+                if (sy >= DOOMGENERIC_RESY) sy = DOOMGENERIC_RESY - 1;
+                uint32_t v = DG_ScreenBuffer[sy * DOOMGENERIC_RESX + sx];
+                int rr = (v >> 16) & 255, gg = (v >> 8) & 255, bb = v & 255;
+                sr += rr; sg += gg; sb += bb;
+                int lum = (rr * 299 + gg * 587 + bb * 114) / 1000;
+                int lifted = lum_lut[lum] * 255 / (int)(strlen(RAMP) - 1);
+                if (lifted > BAYER[py & 3][px & 3] * 16 + 8) bits |= BIT[dx][dy];
+            }
+            int rr = sr / 8, gg = sg / 8, bb = sb / 8;
+            int mx = rr > gg ? (rr > bb ? rr : bb) : (gg > bb ? gg : bb);
+            if (mx > 0 && mx < 160) { rr = rr * 160 / mx; gg = gg * 160 / mx; bb = bb * 160 / mx; }
+            int col = (rr << 16) | (gg << 8) | bb;
+            if (bits && col != prev_fg) {
+                p += sprintf(p, "\x1b[38;2;%d;%d;%dm", rr, gg, bb);
+                prev_fg = col;
+            }
+            unsigned cp = 0x2800 + bits;
+            *p++ = (char)(0xE0 | (cp >> 12));
+            *p++ = (char)(0x80 | ((cp >> 6) & 0x3F));
+            *p++ = (char)(0x80 | (cp & 0x3F));
+        }
+        memcpy(p, "\x1b[0m\n", 5); p += 5;
+    }
+    out_write(frame_buf, (size_t)(p - frame_buf));
+}
+
 static void emit_stats(void) {
     player_t *pl = &players[consoleplayer];
     int ammo = 0;
@@ -263,6 +316,7 @@ void DG_DrawFrame(void) {
     if (c <= 0 || r <= 0) return;
     int m = mode;
     if (m == MODE_BLOCKS) emit_frame(c, r);
+    else if (m == MODE_BRAILLE) emit_frame_braille(c, r);
     else emit_frame_ascii(c, r, m == MODE_ASCII);
     emit_stats();
 }
