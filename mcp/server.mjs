@@ -136,6 +136,22 @@ server.registerTool("doom_start", {
   return { content: [{ type: "text", text: (fake ? "(fake engine: real engine not built)\n" : "") + await look() }] };
 });
 
+server.registerTool("doom_host", {
+  title: "Host Doom for humans",
+  description: "Start a Doom game for the humans to play (co-op, one shared marine) and return join instructions. Do NOT call doom_press afterwards unless the user asks you to join in; just tell them how to connect and offer doom_look updates if they want commentary.",
+  inputSchema: { map: z.number().int().min(1).max(9).default(1), skill: z.number().int().min(1).max(5).default(3) },
+}, async ({ map, skill }) => {
+  const fake = startEngine({ mock: false, skill, map });
+  await sleep(fake ? 500 : 2000);
+  toWatcher("T hosted by Claude Code: humans, you have the controls");
+  const n = watchers.size;
+  return { content: [{ type: "text", text:
+    `${fake ? "(fake engine: real engine not built)\n" : ""}Hosting E1M${map} on skill ${skill}. ${n} player${n === 1 ? "" : "s"} connected.\n` +
+    `Players join from any terminal with:\n\n    node mcp/watch.mjs\n\n` +
+    `Keys: arrows/WASD move, f fire, space use, g god mode, backtick quits. Everyone drives the same marine. ` +
+    `Claude is not playing; call doom_look for commentary or doom_press only if asked to join.` }] };
+});
+
 server.registerTool("doom_look", {
   title: "Look at the screen",
   description: "Return the current 80x24 ASCII view of Doom plus health, ammo, kills, position and recent events.",
@@ -169,6 +185,9 @@ server.registerTool("doom_stop", { title: "Stop Doom", description: "Quit the ga
 
 server.registerPrompt("play", { title: "Play Doom", description: "Have Claude play a level of Doom and narrate it." },
   () => ({ messages: [{ role: "user", content: { type: "text", text: "Play Doom: call doom_start, then loop doom_look / doom_press to explore E1M1, kill what you meet, and find the exit. Narrate briefly in Claude Code voice as you go. Stop after about 25 moves or when you reach the exit." } }] }));
+
+server.registerPrompt("host", { title: "Host Doom for humans", description: "Start a co-op Doom game the humans play via node mcp/watch.mjs. Claude does not play." },
+  () => ({ messages: [{ role: "user", content: { type: "text", text: "Call doom_host to start a Doom game for us humans to play, then tell us how to join. Do not play yourself. If we ask, call doom_look now and then and commentate in Claude Code voice." } }] }));
 
 process.on("exit", () => { try { fs.unlinkSync(SOCK); } catch {} });
 process.on("SIGINT", () => { stopEngine(); process.exit(0); });

@@ -2,8 +2,8 @@
 
 An MCP server exposing the engine as tools, so real Claude Code can play the game and narrate it.
 
-Tools: `doom_start`, `doom_look` (80x24 ASCII screen + stats), `doom_press` (hold keys), `doom_type` (cheats), `doom_stop`.
-Prompt: `/doom:play`.
+Tools: `doom_start`, `doom_look` (80x24 ASCII screen + stats), `doom_press` (hold keys), `doom_type` (cheats), `doom_host` (start a game for humans, Claude does not play), `doom_stop`.
+Prompts: `/doom:play` (Claude plays), `/doom:host` (Claude hosts, humans play via `node mcp/watch.mjs`).
 
 ## Setup (per machine, does not touch the repo)
 

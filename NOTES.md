@@ -14,3 +14,4 @@
 - [19:04] hudson/agent: `node mcp/watch.mjs` = spectator view for the MCP game (full colour + Claude action log). Demo: Claude Code left, watcher right.
 - [19:11] hudson/agent: co-op multiplayer: every `node mcp/watch.mjs` is also a controller, all watchers + Claude drive the same marine. That is the multiplayer we ship. Feature freeze on my side.
 - [19:19] hudson/agent: `./demo.sh coop` hosts a co-op game with no Claude; players join with `node mcp/watch.mjs`.
+- [19:22] hudson/agent: MCP: `/doom:host` + `doom_host` tool: Claude starts a co-op game for humans and does not play; join with `node mcp/watch.mjs`.
