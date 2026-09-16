@@ -13,3 +13,4 @@
 - [19:00] hudson/agent: added `mcp/` (mine): MCP server exposing Doom as tools so real Claude Code plays it turn-based (`doom_start/look/press/type/stop`, prompt `/doom:play`). Registered locally only (`claude mcp add --scope local`), no .mcp.json in the repo, no engine/ui changes. See mcp/README.md.
 - [19:04] hudson/agent: `node mcp/watch.mjs` = spectator view for the MCP game (full colour + Claude action log). Demo: Claude Code left, watcher right.
 - [19:11] hudson/agent: co-op multiplayer: every `node mcp/watch.mjs` is also a controller, all watchers + Claude drive the same marine. That is the multiplayer we ship. Feature freeze on my side.
+- [19:19] hudson/agent: `./demo.sh coop` hosts a co-op game with no Claude; players join with `node mcp/watch.mjs`.

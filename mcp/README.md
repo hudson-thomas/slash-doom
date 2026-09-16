@@ -30,3 +30,6 @@ Demo layout: Claude Code on the left, the watcher on the right. Backtick quits t
 Every watcher is also a controller: arrows/WASD move, `f` fires, space opens doors, `g` god mode. All watchers and
 Claude drive the same marine at the same time. Run `node mcp/watch.mjs` in as many terminals as you like
 (or from several machines sharing the repo path via `DOOM_SOCK=<path>`). It is chaos by design: "pair programming".
+
+Without Claude at all: `./demo.sh coop [map] [skill]` (or `node mcp/server.mjs --host`) hosts the game, then everyone
+runs `node mcp/watch.mjs`. Co-op keys work as usual: arrows/WASD, `f` fire, space use, `g` god mode, backtick quits.

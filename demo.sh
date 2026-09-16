@@ -2,6 +2,7 @@
 # One-command demo launcher. Builds the engine, then starts the best available front end.
 #   ./demo.sh            # UI if present, else raw dev player with narration
 #   ./demo.sh raw        # raw dev player (no Claude Code chrome)
+#   ./demo.sh coop [map] [skill]   # host a shared-marine co-op game; players join with: node mcp/watch.mjs
 #   MODE=braille ./demo.sh raw
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -15,6 +16,11 @@ if [ ! -f .env ] && [ -z "${ANTHROPIC_API_KEY:-}" ]; then
 fi
 
 [ -d narrator/node_modules ] || (cd narrator && npm install --silent)
+
+if [ "${1:-}" = "coop" ]; then
+  [ -d mcp/node_modules ] || (cd mcp && npm install --silent)
+  exec node mcp/server.mjs --host "${2:-1}" "${3:-3}"
+fi
 
 if [ "${1:-}" != "raw" ] && [ -f ui/package.json ]; then
   echo ">> starting UI (Claude Code chrome + Doom + narrator)"

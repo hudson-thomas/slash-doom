@@ -173,4 +173,13 @@ server.registerPrompt("play", { title: "Play Doom", description: "Have Claude pl
 process.on("exit", () => { try { fs.unlinkSync(SOCK); } catch {} });
 process.on("SIGINT", () => { stopEngine(); process.exit(0); });
 process.on("SIGTERM", () => { stopEngine(); process.exit(0); });
-await server.connect(new StdioServerTransport());
+// --host: no Claude, just host a co-op game for watchers.   node mcp/server.mjs --host [map] [skill]
+if (process.argv.includes("--host")) {
+  const i = process.argv.indexOf("--host");
+  const map = +(process.argv[i + 1] ?? 1) || 1, skill = +(process.argv[i + 2] ?? 3) || 3;
+  const fake = startEngine({ mock: false, skill, map });
+  process.stderr.write(`hosting E1M${map} skill ${skill}${fake ? " (fake engine)" : ""} on ${SOCK}\njoin with: node mcp/watch.mjs   (from any number of terminals)\nctrl-c to stop\n`);
+  setInterval(() => { if (!eng) { process.stderr.write("engine exited\n"); process.exit(0); } }, 1000);
+} else {
+  await server.connect(new StdioServerTransport());
+}
