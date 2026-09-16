@@ -14,13 +14,13 @@ if [ ! -f .env ] && [ -z "${ANTHROPIC_API_KEY:-}" ]; then
   echo ">> no ANTHROPIC_API_KEY or .env: narrator will use canned lines"
 fi
 
+[ -d narrator/node_modules ] || (cd narrator && npm install --silent)
+
 if [ "${1:-}" != "raw" ] && [ -f ui/package.json ]; then
-  echo ">> starting UI"
-  if [ ! -d ui/node_modules ]; then (cd ui && (command -v bun >/dev/null && bun install || npm install)); fi
-  cd ui
-  if command -v bun >/dev/null; then exec bun run start; else exec npm start; fi
+  echo ">> starting UI (Claude Code chrome + Doom + narrator)"
+  [ -d ui/node_modules ] || (cd ui && npm install --silent)
+  cd ui && exec npm start -- "${@:2}"
 fi
 
 echo ">> starting raw dev player (Doom with narration, no chrome). Backtick cycles render modes, ctrl-c quits."
-[ -d narrator/node_modules ] || (cd narrator && npm install --silent)
 NARRATE=1 exec node engine/dev/play.mjs
