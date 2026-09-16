@@ -76,7 +76,12 @@ export class Engine extends EventEmitter {
         this.emit("stats", parseStats(line.slice(2)));
       } else if (line.startsWith("L ")) {
         this.emit("log", line.slice(2));
+      } else if (line.startsWith("N ")) {
+        this.emit("narration", line.slice(2));
+      } else if (line.startsWith("E ")) {
+        this.emit("event", line.slice(2));
       }
+      // anything else (A snapshots, future prefixes) is ignored per CONTRACT.md
     }
     this.acc = this.acc.slice(pos);
   }
@@ -94,8 +99,24 @@ function parseStats(s: string): Stats {
   return out;
 }
 
-export function spawnEngine({ mock }: { mock: boolean }): Engine {
+export interface SpawnOpts {
+  mock: boolean;
+  /** Route through narrator/wrap.mjs (adds N lines). Only used if narrator/node_modules exists. */
+  narrator: boolean;
+}
+
+export function spawnEngine({ mock, narrator }: SpawnOpts): Engine {
   const engineDir = path.join(REPO_ROOT, "engine");
+  const narratorDir = path.join(REPO_ROOT, "narrator");
+  const stdio: ["pipe", "pipe", "ignore"] = ["pipe", "pipe", "ignore"];
+
+  if (narrator && fs.existsSync(path.join(narratorDir, "node_modules"))) {
+    // wrap.mjs spawns the engine itself; ENGINE=node:<script> lets us substitute a node script.
+    const env = { ...process.env };
+    if (mock) env.ENGINE = "node:engine/dev/fake-engine.mjs";
+    else if (process.platform === "win32") env.ENGINE = "node:ui/dev/wsl-engine.mjs";
+    return new Engine(spawn(process.execPath, [path.join(narratorDir, "wrap.mjs")], { stdio, env }));
+  }
   if (mock) {
     const fake = path.join(engineDir, "dev", "fake-engine.mjs");
     return new Engine(spawn(process.execPath, [fake], { stdio: ["pipe", "pipe", "ignore"] }));

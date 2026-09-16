@@ -12,6 +12,7 @@ import { createStore } from "./store.js";
 import { RENDER_MODES } from "./theme.js";
 
 const mock = process.argv.includes("--mock");
+const narrator = !process.argv.includes("--no-narrator"); // needs `npm i` in narrator/, else skipped
 // --exit-after <ms>: quit automatically (for smoke tests)
 const exitAfterIdx = process.argv.indexOf("--exit-after");
 const exitAfter = exitAfterIdx > 0 ? +process.argv[exitAfterIdx + 1] : 0;
@@ -23,7 +24,7 @@ const comp = new Compositor(out, layout);
 
 let engine: Engine;
 try {
-  engine = spawnEngine({ mock });
+  engine = spawnEngine({ mock, narrator });
 } catch (e) {
   console.error((e as Error).message);
   process.exit(1);
@@ -38,6 +39,8 @@ engine.on("frame", (lines: string[]) => {
 });
 engine.on("stats", (s) => (store.stats = s));
 engine.on("log", (t: string) => store.pushLog(t));
+engine.on("narration", (t: string) => (store.narration = t));
+engine.on("event", (ev: string) => store.onEvent(ev));
 engine.on("exit", () => quit());
 
 // fps counter for the status line

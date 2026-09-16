@@ -14,6 +14,11 @@ npm start          # real Doom: needs engine built (make -C engine). On Windows 
 npm run mock       # no Doom needed: uses engine/dev/fake-engine.mjs
 ```
 
+If `../narrator/node_modules` exists (`cd narrator && npm i`), the engine is routed through
+`narrator/wrap.mjs` and its `N` lines drive the spinner text (real Claude with `ANTHROPIC_API_KEY`,
+canned lines without). Pass `--no-narrator` to bypass it. `--exit-after <ms>` quits automatically
+(smoke tests). On Windows the narrator reaches the WSL engine via `dev/wsl-engine.mjs`.
+
 Use Windows Terminal / any truecolor terminal. Keys: arrows or WASD move, `f` fire, space use/open,
 shift+arrows run, `,`/`.` strafe, tab automap, esc menu, backtick cycles render mode
 (blocks → braille → ascii → mono), ctrl+c quits.

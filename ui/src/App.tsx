@@ -63,7 +63,7 @@ function ToolLog({ store }: { store: Store }) {
             <Text bold>{e.tool}</Text>
             <Text>({e.arg})</Text>
           </Text>
-          <Text color={DIM}>
+          <Text color={e.error ? "red" : DIM}>
             {"  ⎿  "}
             {e.result}
           </Text>
@@ -78,11 +78,14 @@ function Spinner({ store, tick }: { store: Store; tick: number }) {
   const kills = store.stats.kills;
   let verb = VERBS[0];
   for (let i = 0; i < VERB_THRESHOLDS.length; i++) if (kills >= VERB_THRESHOLDS[i]) verb = VERBS[i];
+  // priority: temporary override (death/level) > narrator line > kill-count verb
+  const override = store.override && store.override.until > Date.now() ? store.override.text : null;
+  const text = override ?? (store.narration || `${verb}…`);
   const elapsed = Math.floor((Date.now() - store.startedAt) / 1000);
   return (
     <Text>
       <Text color={ORANGE}>{glyph} </Text>
-      <Text color={ORANGE}>{verb}… </Text>
+      <Text color={ORANGE}>{text} </Text>
       <Text color={DIM}>
         (esc to interrupt · {elapsed}s · ↑ {fmtTokens(tokens(store))} tokens)
       </Text>
