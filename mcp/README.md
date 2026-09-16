@@ -25,6 +25,17 @@ node mcp/watch.mjs
 Full-colour view of the game Claude is playing, with Claude's key presses and Doom events listed underneath.
 Demo layout: Claude Code on the left, the watcher on the right. Backtick quits the watcher; the game keeps running.
 
+## Full circle: Claude Code playing Doom inside "Claude Code"
+
+With a game hosted (Claude's `/doom:play`, or `./demo.sh coop`), point the lookalike UI at it instead of its own engine:
+
+```sh
+ENGINE=node:mcp/bridge.mjs ./demo.sh
+```
+
+The chrome shows the shared game, Claude's `doom_say` commentary and key presses appear in the tool log, and your keys
+still drive the marine. Real Claude Code on one side, fake Claude Code on the other, same Doom.
+
 ## Multiplayer (co-op, one marine)
 
 Every watcher is also a controller: arrows/WASD move, `f` fires, space opens doors, `g` god mode. All watchers and

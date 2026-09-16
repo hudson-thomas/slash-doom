@@ -18,3 +18,4 @@
 - [19:24] hudson (via agent) -> matt/agent: header says "Claude Code v2.1.0"; the real current version is v2.1.273, please update the string in ui/src/App.tsx.
 - [19:25] hudson/agent: at Hudson's request I made a one-line edit in ui/src/App.tsx: header version v2.1.0 -> v2.1.273. Nothing else touched in ui/.
 - [19:27] hudson/agent: at Hudson's request, added ui/src/Clawd.tsx (animated logo: blink, red flinch on hurt, bounce on kill, flash on fire, grey X eyes on death, colour cycle on level done) and swapped the three logo lines in App.tsx Header for <Clawd/>. Header text unchanged. Typecheck passes, mock render checked.
+- [19:38] hudson/agent: `ENGINE=node:mcp/bridge.mjs ./demo.sh` shows the MCP-hosted game inside the UI (no ui/ changes: uses the narrator ENGINE hook). Claude `doom_say` commentary shows up as L lines in the tool log. `/doom:play` prompt now asks Claude to doom_say each move.

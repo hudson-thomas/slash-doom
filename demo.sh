@@ -3,6 +3,7 @@
 #   ./demo.sh            # UI if present, else raw dev player with narration
 #   ./demo.sh raw        # raw dev player (no Claude Code chrome)
 #   ./demo.sh coop [map] [skill]   # host a shared-marine co-op game; players join with: node mcp/watch.mjs
+#   ENGINE=node:mcp/bridge.mjs ./demo.sh   # show a hosted game (Claude's /doom:play or coop) inside the UI
 #   MODE=braille ./demo.sh raw
 set -euo pipefail
 cd "$(dirname "$0")"

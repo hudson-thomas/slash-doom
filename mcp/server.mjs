@@ -34,6 +34,7 @@ net.createServer(sock => {
       if (l.startsWith("s ")) { if (!watcherSize) { watcherSize = l; applyWatcherView(); } }   // first watcher sets the size
       else if (l.startsWith("k ")) { send(l); lastHuman[who] = l.slice(2); throttledHumanNote(who); }   // co-op keys
       else if (l.startsWith("c ")) { send(l); toWatcher(`T ${who} typed ${l.slice(2)}`); }
+      else if (/^[amf] /.test(l) || l === "a") { send(l); }        // snapshot requests, render mode, fps from bridges
     }
   });
   sock.on("close", () => { watchers.delete(sock); if (!watchers.size) { watcherSize = null; applyWatcherView(); } toWatcher(`T ${who} left`); });
@@ -180,11 +181,17 @@ server.registerTool("doom_type", {
   inputSchema: { text: z.string().min(1).max(20) },
 }, async ({ text }) => { toWatcher(`T type ${text}`); send(`c ${text}`); await sleep(400); return { content: [{ type: "text", text: await look() }] }; });
 
+server.registerTool("doom_say", {
+  title: "Say something to the players",
+  description: "Show a short line of your commentary on the spectators' screens (the watch.mjs terminals and the Claude Code lookalike UI). Use it every move or two while playing so the audience can follow your thinking.",
+  inputSchema: { text: z.string().min(1).max(120) },
+}, async ({ text }) => { toWatcher(`T Claude: ${text}`); return { content: [{ type: "text", text: "shown" }] }; });
+
 server.registerTool("doom_stop", { title: "Stop Doom", description: "Quit the game.", inputSchema: {} },
   async () => { toWatcher("T doom_stop"); stopEngine(); return { content: [{ type: "text", text: "Doom stopped." }] }; });
 
 server.registerPrompt("play", { title: "Play Doom", description: "Have Claude play a level of Doom and narrate it." },
-  () => ({ messages: [{ role: "user", content: { type: "text", text: "Play Doom: call doom_start, then loop doom_look / doom_press to explore E1M1, kill what you meet, and find the exit. Narrate briefly in Claude Code voice as you go. Stop after about 25 moves or when you reach the exit." } }] }));
+  () => ({ messages: [{ role: "user", content: { type: "text", text: "Play Doom: call doom_start, then loop doom_look / doom_press to explore E1M1, kill what you meet, and find the exit. Before each press, call doom_say with one short line of commentary in Claude Code spinner voice (calm, first person, a little too earnest, coding metaphors welcome: refactoring the imp, resolving a merge conflict with a shotgun). Stop after about 25 moves or when you reach the exit, then summarize." } }] }));
 
 server.registerPrompt("host", { title: "Host Doom for humans", description: "Start a co-op Doom game the humans play via node mcp/watch.mjs. Claude does not play." },
   () => ({ messages: [{ role: "user", content: { type: "text", text: "Call doom_host to start a Doom game for us humans to play, then tell us how to join. Do not play yourself. If we ask, call doom_look now and then and commentate in Claude Code voice." } }] }));
