@@ -13,4 +13,14 @@ claude mcp add --scope local doom -- node "$PWD/mcp/server.mjs"   # from the rep
 ```
 
 Then in Claude Code: "play Doom" or `/doom:play`. Claude looks at the ASCII frame, decides, presses keys, looks again.
-Turn-based Doom. Watch the same game live in another terminal? Not yet: the MCP server owns its own engine instance.
+
+## Watch it play
+
+In a second terminal, before or after Claude starts:
+
+```sh
+node mcp/watch.mjs
+```
+
+Full-colour view of the game Claude is playing, with Claude's key presses and Doom events listed underneath.
+Demo layout: Claude Code on the left, the watcher on the right. `q` quits the watcher; the game keeps running.
