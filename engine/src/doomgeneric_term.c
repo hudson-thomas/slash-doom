@@ -42,7 +42,7 @@ static unsigned char lum_lut[256]; /* gamma-stretched luminance -> ramp index */
 static uint32_t last_frame_ms = 0;
 static char last_msg[256] = "";
 static int last_state = -1, last_gs = -1, last_kills = 0, last_health = 100;
-static volatile int want_snapshot = 0;
+static volatile int want_snapshot = 0, want_pixels = 0;
 
 static uint32_t now_ms(void) {
     struct timespec ts; clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -119,6 +119,8 @@ static void *reader_thread(void *arg) {
                 enqueue(1, (unsigned char)k);
                 enqueue(0, (unsigned char)k);
             }
+        } else if (line[0] == 'p') {
+            want_pixels = 1;              /* emit one "P 320 200" + base64 raw RGB line */
         } else if (line[0] == 'a') {
             want_snapshot = 1;            /* emit one "A <rows>" mono snapshot (80x24) */
         } else if (line[0] == 'f') {
@@ -348,6 +350,30 @@ static void emit_stats(void) {
         if (pl->health < last_health - 15) { snprintf(buf, sizeof buf, "E hurt %d", last_health - pl->health); out_line(buf); }
     }
     last_state = pl->playerstate; last_gs = gamestate; last_kills = pl->killcount; last_health = pl->health;
+    if (want_pixels) {
+        want_pixels = 0;
+        static const char B64[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        static char pix[DOOMGENERIC_RESX * DOOMGENERIC_RESY * 4 + 64];
+        char *q = pix;
+        q += sprintf(q, "P %d %d\n", DOOMGENERIC_RESX, DOOMGENERIC_RESY);
+        int n = DOOMGENERIC_RESX * DOOMGENERIC_RESY;
+        unsigned char rgb[3]; int k = 0;
+        unsigned char grp[3]; int gi = 0;
+        for (int i = 0; i < n; i++) {
+            uint32_t v = DG_ScreenBuffer[i];
+            rgb[0] = (v >> 16) & 255; rgb[1] = (v >> 8) & 255; rgb[2] = v & 255;
+            for (k = 0; k < 3; k++) {
+                grp[gi++] = rgb[k];
+                if (gi == 3) {
+                    *q++ = B64[grp[0] >> 2]; *q++ = B64[((grp[0] & 3) << 4) | (grp[1] >> 4)];
+                    *q++ = B64[((grp[1] & 15) << 2) | (grp[2] >> 6)]; *q++ = B64[grp[2] & 63];
+                    gi = 0;
+                }
+            }
+        }
+        *q++ = '\n';
+        out_write(pix, (size_t)(q - pix));
+    }
     if (want_snapshot) {
         want_snapshot = 0;
         /* 80x24 mono snapshot for narration; reuse ascii encoder into a side buffer */

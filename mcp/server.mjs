@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import fs from "node:fs";
 import { z } from "zod";
+import zlib from "node:zlib";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
@@ -34,7 +35,7 @@ net.createServer(sock => {
       if (l.startsWith("s ")) { if (!watcherSize) { watcherSize = l; applyWatcherView(); } }   // first watcher sets the size
       else if (l.startsWith("k ")) { send(l); lastHuman[who] = l.slice(2); throttledHumanNote(who); }   // co-op keys
       else if (l.startsWith("c ")) { send(l); toWatcher(`T ${who} typed ${l.slice(2)}`); }
-      else if (/^[amf] /.test(l) || l === "a") { send(l); }        // snapshot requests, render mode, fps from bridges
+      else if (/^[amf] /.test(l) || l === "a" || l === "p") { send(l); }        // snapshot requests, render mode, fps from bridges
     }
   });
   sock.on("close", () => { watchers.delete(sock); if (!watchers.size) { watcherSize = null; applyWatcherView(); } toWatcher(`T ${who} left`); });
@@ -55,7 +56,8 @@ function applyWatcherView() {
 
 // ---------------------------------------------------------------- engine process ----------
 let eng = null;
-const st = { stats: {}, msgs: [], events: [], snapshot: null, snapWaiters: [] };
+const st = { stats: {}, msgs: [], events: [], snapshot: null, snapWaiters: [], png: null, pngWaiters: [] };
+let pixHeader = null;
 
 function startEngine({ mock, skill, map }) {
   stopEngine();
@@ -79,6 +81,13 @@ function startEngine({ mock, skill, map }) {
         if (--grabbing === 0) { st.snapshot = lines.join("\n"); for (const w of st.snapWaiters.splice(0)) w(st.snapshot); }
         continue;
       }
+      if (pixHeader) {                       // base64 RGB line following "P w h"
+        const [w, h] = pixHeader; pixHeader = null;
+        try { st.png = encodePng(Buffer.from(line, "base64"), w, h); } catch { st.png = null; }
+        for (const f of st.pngWaiters.splice(0)) f(st.png);
+        continue;
+      }
+      if (line.startsWith("P ")) { pixHeader = line.slice(2).split(" ").map(Number); continue; }
       if (line.startsWith("A ")) { grabbing = +line.slice(2); lines = []; }
       else if (line.startsWith("F ")) { grabbing = 0; /* frames: skip body by consuming rows */ skipRows = +line.slice(2); }
       else if (skipRows > 0) { skipRows--; }
@@ -95,6 +104,26 @@ function startEngine({ mock, skill, map }) {
 function stopEngine() { if (eng) { try { send("q"); } catch {} setTimeout(() => eng?.kill(), 300).unref(); eng = null; } }
 const send = l => { if (eng?.stdin.writable) eng.stdin.write(l + "\n"); };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+// Minimal PNG encoder (RGB8, filter 0) using zlib; scaled 2x horizontally-aware? No: emit native 320x200, Claude reads it fine.
+function encodePng(rgb, w, h) {
+  const raw = Buffer.alloc((w * 3 + 1) * h);
+  for (let y = 0; y < h; y++) { raw[y * (w * 3 + 1)] = 0; rgb.copy(raw, y * (w * 3 + 1) + 1, y * w * 3, (y + 1) * w * 3); }
+  const chunk = (type, data) => {
+    const len = Buffer.alloc(4); len.writeUInt32BE(data.length);
+    const td = Buffer.concat([Buffer.from(type, "ascii"), data]);
+    const crc = Buffer.alloc(4); crc.writeUInt32BE(zlib.crc32(td) >>> 0);
+    return Buffer.concat([len, td, crc]);
+  };
+  const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(w, 0); ihdr.writeUInt32BE(h, 4); ihdr[8] = 8; ihdr[9] = 2; ihdr[10] = 0; ihdr[11] = 0; ihdr[12] = 0;
+  return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk("IHDR", ihdr), chunk("IDAT", zlib.deflateSync(raw, { level: 6 })), chunk("IEND", Buffer.alloc(0))]);
+}
+async function grabPng() {
+  if (!eng) return null;
+  const p = new Promise(r => st.pngWaiters.push(r));
+  send("p");
+  return Promise.race([p, sleep(1500).then(() => null)]);
+}
 
 async function look() {
   if (!eng) return "Doom is not running. Call doom_start first.";
@@ -115,6 +144,14 @@ async function look() {
     "```",
   ].filter(x => x !== null).join("\n");
 }
+// text + real screenshot (PNG) when available
+async function lookContent(prefix = "") {
+  const text = await look();
+  const png = await grabPng();
+  const content = [{ type: "text", text: prefix + text }];
+  if (png) content.push({ type: "image", data: png.toString("base64"), mimeType: "image/png" });
+  return content;
+}
 
 const KEY = z.enum(["up", "down", "left", "right", "fire", "use", "run", "strafel", "strafer", "enter", "esc", "tab", "1", "2", "3", "4", "5", "6", "7"]);
 
@@ -132,7 +169,7 @@ degrees; 700ms is about 90. Angle 0 = east, 90 = north, 180 = west, 270 = south.
 WHEN BLOCKED: do not press up again. Turn 90 degrees (700ms) toward the side of the screen that looks more open
 (more varied texture, darker distance), look, then walk. If blocked twice in a row, call doom_map.
 
-READING THE SCREEN: the 80x24 picture is a luminance ramp (space . : - = + * # % @ from dark to bright). Far away
+READING THE SCREEN: each look also includes a real 320x200 screenshot image; prefer it over the ASCII. The 80x24 ASCII picture is a luminance ramp (space . : - = + * # % @ from dark to bright). Far away
 is darker, near walls are brighter and fill more of the frame. A flat band of one repeated character across the
 middle rows = a wall right in front of you. Sky (very dark, top rows) means an open outdoor area. Small clusters
 that change position between looks are enemies. The bottom 3 rows are the HUD; ignore them.
@@ -155,7 +192,7 @@ server.registerTool("doom_start", {
 }, async ({ map, skill, mock }) => {
   const fake = startEngine({ mock, skill, map });
   await sleep(fake ? 500 : 2500);
-  return { content: [{ type: "text", text: (fake ? "(fake engine: real engine not built)\n" : "") + await look() }] };
+  return { content: await lookContent(fake ? "(fake engine: real engine not built)\n" : "") };
 });
 
 server.registerTool("doom_host", {
@@ -178,7 +215,7 @@ server.registerTool("doom_look", {
   title: "Look at the screen",
   description: "Return the current 80x24 ASCII view of Doom plus health, ammo, kills, position and recent events.",
   inputSchema: {},
-}, async () => { toWatcher("T look"); return { content: [{ type: "text", text: await look() }] }; });
+}, async () => { toWatcher("T look"); return { content: await lookContent() }; });
 
 server.registerTool("doom_press", {
   title: "Press keys",
@@ -200,14 +237,14 @@ server.registerTool("doom_press", {
   const wantedMove = keys.some(k => ["up", "down", "strafel", "strafer"].includes(k));
   const blocked = wantedMove && moved < 8;
   const head = `moved ${moved} units, turned ${Math.round(turned)} degrees${blocked ? ". BLOCKED: a wall or obstacle is in the way, turn before walking again" : ""}`;
-  return { content: [{ type: "text", text: head + "\n" + await look() }] };
+  return { content: await lookContent(head + "\n") };
 });
 
 server.registerTool("doom_type", {
   title: "Type text into Doom",
   description: "Type a string as keypresses (cheats: iddqd god mode, idkfa all weapons and keys, idclip walk through walls, idclev15 warp to E1M5).",
   inputSchema: { text: z.string().min(1).max(20) },
-}, async ({ text }) => { toWatcher(`T type ${text}`); send(`c ${text}`); await sleep(400); return { content: [{ type: "text", text: await look() }] }; });
+}, async ({ text }) => { toWatcher(`T type ${text}`); send(`c ${text}`); await sleep(400); return { content: await lookContent() }; });
 
 server.registerTool("doom_map", {
   title: "Automap",
@@ -219,9 +256,9 @@ server.registerTool("doom_map", {
   send("k tab"); await sleep(150);
   for (let i = 0; i < 6; i++) { send("k -"); await sleep(60); }     // zoom out so more of the level fits
   await sleep(450);
-  const text = await look();
+  const content = await lookContent("AUTOMAP (north up, you are the arrow at the center; bright = walls):\n");
   send("k tab"); await sleep(250);
-  return { content: [{ type: "text", text: "AUTOMAP (north up, you are the arrow at the center; bright = walls):\n" + text }] };
+  return { content };
 });
 
 server.registerTool("doom_say", {
