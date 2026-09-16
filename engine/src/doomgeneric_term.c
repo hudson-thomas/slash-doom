@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -31,6 +32,10 @@ static unsigned int kq_w = 0, kq_r = 0;
 static uint32_t held_until[256];
 
 static volatile int cols = 0, rows = 0;
+enum { MODE_BLOCKS, MODE_ASCII, MODE_MONO };
+static volatile int mode = MODE_BLOCKS;
+static const char RAMP[] = " .:-=+*#%@";
+static unsigned char lum_lut[256]; /* gamma-stretched luminance -> ramp index */
 static uint32_t last_frame_ms = 0;
 static char last_msg[256] = "";
 
@@ -96,6 +101,10 @@ static void *reader_thread(void *arg) {
                 if (!held_until[k]) enqueue(1, (unsigned char)k);
                 held_until[k] = now_ms() + release_ms;
             }
+        } else if (line[0] == 'm' && line[1] == ' ') {
+            if (!strcmp(line + 2, "blocks")) mode = MODE_BLOCKS;
+            else if (!strcmp(line + 2, "ascii")) mode = MODE_ASCII;
+            else if (!strcmp(line + 2, "mono")) mode = MODE_MONO;
         } else if (line[0] == 'r') {
             int ms = atoi(line + 1);
             if (ms >= 30 && ms <= 2000) release_ms = ms;
@@ -126,6 +135,10 @@ void DG_Init(void) {
     pthread_t th;
     pthread_create(&th, NULL, reader_thread, NULL);
     pthread_detach(th);
+    for (int i = 0; i < 256; i++) {
+        double v = pow(i / 255.0, 0.55);          /* lift Doom's dark palette */
+        lum_lut[i] = (unsigned char)(v * (strlen(RAMP) - 1) + 0.5);
+    }
     out_line("L engine ready");
 }
 
@@ -176,6 +189,50 @@ static void emit_frame(int c, int r) {
     out_write(frame_buf, (size_t)(p - frame_buf));
 }
 
+/* ASCII modes: one char per cell from a luminance ramp; ascii = coloured fg, mono = plain text. */
+static void emit_frame_ascii(int c, int r, int colour) {
+    int px_w = c, px_h = r * 2;
+    if (px_w * 3 > px_h * 4) px_w = px_h * 4 / 3; else px_h = px_w * 3 / 4;
+    if (px_h < 2) px_h = 2;
+    int x0 = (c - px_w) / 2;
+    int y0 = ((r * 2 - px_h) / 2) & ~1;
+    int row0 = y0 / 2, row1 = row0 + (px_h + 1) / 2;
+    char *p = frame_buf;
+    p += sprintf(p, "F %d\n", r);
+    for (int y = 0; y < r; y++) {
+        int prev_fg = -1;
+        for (int x = 0; x < c; x++) {
+            char ch = ' ';
+            uint32_t col = 0;
+            if (y >= row0 && y < row1 && x >= x0 && x < x0 + px_w) {
+                int sy0 = ((y - row0) * 2) * DOOMGENERIC_RESY / px_h;
+                int sy1 = sy0 + 1 < DOOMGENERIC_RESY ? sy0 + 1 : sy0;
+                int sx = (x - x0) * DOOMGENERIC_RESX / px_w;
+                uint32_t a = DG_ScreenBuffer[sy0 * DOOMGENERIC_RESX + sx];
+                uint32_t b = DG_ScreenBuffer[sy1 * DOOMGENERIC_RESX + sx];
+                int rr = (((a >> 16) & 255) + ((b >> 16) & 255)) / 2;
+                int gg = (((a >> 8) & 255) + ((b >> 8) & 255)) / 2;
+                int bb = ((a & 255) + (b & 255)) / 2;
+                int lum = (rr * 299 + gg * 587 + bb * 114) / 1000;   /* 0..255 */
+                ch = RAMP[lum_lut[lum]];
+                /* brighten colour so dark ramp chars stay legible */
+                int boost = 255 - lum; 
+                rr += (boost * rr) / 512; gg += (boost * gg) / 512; bb += (boost * bb) / 512;
+                if (rr > 255) rr = 255; if (gg > 255) gg = 255; if (bb > 255) bb = 255;
+                col = ((uint32_t)rr << 16) | ((uint32_t)gg << 8) | (uint32_t)bb;
+            }
+            if (colour && ch != ' ' && (int)col != prev_fg) {
+                p += sprintf(p, "\x1b[38;2;%u;%u;%um", (col >> 16) & 255, (col >> 8) & 255, col & 255);
+                prev_fg = (int)col;
+            }
+            *p++ = ch;
+        }
+        if (colour) { memcpy(p, "\x1b[0m", 4); p += 4; }
+        *p++ = '\n';
+    }
+    out_write(frame_buf, (size_t)(p - frame_buf));
+}
+
 static void emit_stats(void) {
     player_t *pl = &players[consoleplayer];
     int ammo = 0;
@@ -204,7 +261,9 @@ void DG_DrawFrame(void) {
     int c = cols, r = rows;
     pthread_mutex_unlock(&lock);
     if (c <= 0 || r <= 0) return;
-    emit_frame(c, r);
+    int m = mode;
+    if (m == MODE_BLOCKS) emit_frame(c, r);
+    else emit_frame_ascii(c, r, m == MODE_ASCII);
     emit_stats();
 }
 
