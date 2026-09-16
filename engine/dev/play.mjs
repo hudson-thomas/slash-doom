@@ -8,14 +8,16 @@ import fs from "node:fs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const engineDir = path.resolve(here, "..");
+const FAKE = process.env.FAKE === "1";
 const bin = path.join(engineDir, "build", "doom-term");
 const wad = ["doom1.wad", "freedoom1.wad"].map(w => path.join(engineDir, "wads", w)).find(fs.existsSync);
-if (!fs.existsSync(bin) || !wad) { console.error("run: make -C engine"); process.exit(1); }
+if (!FAKE && (!fs.existsSync(bin) || !wad)) { console.error("run: make -C engine"); process.exit(1); }
 
 const MODES = ["blocks", "braille", "ascii", "mono"];
 let modeIdx = Math.max(0, MODES.indexOf(process.env.MODE ?? "blocks"));
 const extra = process.argv.length > 2 ? process.argv.slice(2) : ["-warp", "1", "-skill", "3"];
-const child = spawn(bin, ["-iwad", wad, ...extra], { stdio: ["pipe", "pipe", "ignore"] });
+const child = FAKE ? spawn("node", [path.join(here, "fake-engine.mjs")], { stdio: ["pipe", "pipe", "ignore"] })
+                   : spawn(bin, ["-iwad", wad, ...extra], { stdio: ["pipe", "pipe", "ignore"] });
 const send = s => child.stdin.write(s + "\n");
 
 const STATUS_ROWS = 2;

@@ -38,6 +38,12 @@ Doom-native, optional).
 
 Frame rate is capped at ~20 fps by the engine. Frames are only emitted after an `s` line.
 
+## Developing the UI without Doom
+
+`node engine/dev/fake-engine.mjs` speaks this exact protocol (all commands, all modes, S/L lines) and
+draws a moving test pattern. No C build or WAD needed. Spawn it in place of `doom-term` while
+building the UI, then switch to the real binary. `FAKE=1 node engine/dev/play.mjs` shows it in the dev player.
+
 ## Smoke test without the UI
 
 ```sh
