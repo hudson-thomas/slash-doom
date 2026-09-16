@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-// Spectator for the Doom MCP server: shows the game Claude Code is playing, full colour, with Claude's
-// actions listed underneath. Run in a second terminal:  node mcp/watch.mjs   (q or ctrl-c to quit)
+// Spectator AND co-op controller for the Doom MCP server: shows the game Claude Code is playing, full colour,
+// with Claude's actions underneath. Your keys drive the same marine (arrows/WASD move, f fire, space use).
+// Several people can run this at once. Run in a second terminal:  node mcp/watch.mjs   (ctrl-c or ` quits)
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
@@ -8,7 +9,13 @@ import path from "node:path";
 const SOCK = process.env.DOOM_SOCK ?? path.join(os.tmpdir(), "fablenight-doom.sock");
 const STATUS_ROWS = 4;
 const out = process.stdout;
-let actions = ["waiting for Claude Code to call doom_start…"], stat = "", acc = "", sock = null;
+let actions = ["waiting for Claude Code to call doom_start…  (your keys work too: arrows/WASD, f fire, space use, g god)"], stat = "", acc = "", sock = null;
+const KEYS = {
+  "\x1b[A": "up", "\x1b[B": "down", "\x1b[D": "left", "\x1b[C": "right",
+  " ": "use", "\r": "enter", "\x1b": "esc", "\t": "tab",
+  w: "up", s: "down", a: "left", d: "right", f: "fire", ",": "strafel", ".": "strafer",
+  "\x1b[1;2A": "run", "\x1b[1;5A": "fire",
+};
 
 const paint = (rows) => {
   const tail = [
@@ -45,7 +52,14 @@ function onData(chunk) {
 }
 var skip = 0;
 process.stdin.setRawMode?.(true); process.stdin.resume();
-process.stdin.on("data", b => { const s = b.toString(); if (s === "q" || s === "\x03") quit(); });
+process.stdin.on("data", b => {
+  const s = b.toString();
+  if (s === "`" || s === "\x03") return quit();
+  if (s === "g") return sock?.writable && sock.write("c iddqd\n");
+  if (s === "k") return sock?.writable && sock.write("c idkfa\n");
+  const name = KEYS[s] ?? (s.length === 1 && s >= "0" && s <= "9" ? s : null);
+  if (name && sock?.writable) sock.write(`k ${name}\n`);
+});
 out.write("\x1b[?1049h\x1b[?25l\x1b[H\x1b[2J");
 connect(); paint();
 function quit() { out.write("\x1b[?25h\x1b[?1049l"); process.exit(0); }

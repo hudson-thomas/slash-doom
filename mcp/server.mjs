@@ -19,21 +19,36 @@ const SNAP_COLS = 80, SNAP_ROWS = 24;
 // ---------------------------------------------------------------- spectator socket --------
 // `node mcp/watch.mjs` connects here and receives every protocol line plus "T <text>" action lines.
 const SOCK = process.env.DOOM_SOCK ?? path.join(os.tmpdir(), "fablenight-doom.sock");
-let watcher = null, watcherSize = null;
+const watchers = new Set(); let watcherSize = null;   // co-op: every watcher sees the frame and can press keys
 try { fs.unlinkSync(SOCK); } catch {}
+let nextPlayer = 1;
 net.createServer(sock => {
-  watcher = sock;
-  sock.on("data", d => {                      // watcher sends "s <cols> <rows>" lines
-    for (const l of d.toString().split("\n")) if (l.startsWith("s ")) { watcherSize = l; applyWatcherView(); }
+  const who = `player${nextPlayer++}`;
+  watchers.add(sock);
+  let buf = "";
+  sock.on("data", d => {
+    buf += d.toString();
+    let nl;
+    while ((nl = buf.indexOf("\n")) >= 0) {
+      const l = buf.slice(0, nl); buf = buf.slice(nl + 1);
+      if (l.startsWith("s ")) { if (!watcherSize) { watcherSize = l; applyWatcherView(); } }   // first watcher sets the size
+      else if (l.startsWith("k ")) { send(l); lastHuman[who] = l.slice(2); throttledHumanNote(who); }   // co-op keys
+      else if (l.startsWith("c ")) { send(l); toWatcher(`T ${who} typed ${l.slice(2)}`); }
+    }
   });
-  sock.on("close", () => { if (watcher === sock) { watcher = null; watcherSize = null; applyWatcherView(); } });
+  sock.on("close", () => { watchers.delete(sock); if (!watchers.size) { watcherSize = null; applyWatcherView(); } toWatcher(`T ${who} left`); });
   sock.on("error", () => {});
-  toWatcher(`T spectator connected`);
+  toWatcher(`T ${who} joined (co-op: your keys drive the same marine as Claude)`);
 }).listen(SOCK);
-const toWatcher = line => { if (watcher) { try { watcher.write(line + "\n"); } catch {} } };
+const lastHuman = {}, humanNoteAt = {};
+function throttledHumanNote(who) {        // one T line per 800ms per player so the log is not flooded
+  const t = Date.now();
+  if ((humanNoteAt[who] ?? 0) + 800 < t) { humanNoteAt[who] = t; toWatcher(`T ${who} pressed ${lastHuman[who]}`); }
+}
+const toWatcher = line => { for (const w of watchers) { try { w.write(line + "\n"); } catch {} } };
 function applyWatcherView() {
   if (!eng) return;
-  if (watcher && watcherSize) { send(watcherSize); send("m blocks"); send("f 20"); }
+  if (watchers.size && watcherSize) { send(watcherSize); send("m blocks"); send("f 20"); }
   else { send(`s ${SNAP_COLS} ${SNAP_ROWS}`); send("m mono"); send("f 5"); }
 }
 
