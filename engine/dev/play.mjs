@@ -16,12 +16,15 @@ if (!FAKE && (!fs.existsSync(bin) || !wad)) { console.error("run: make -C engine
 const MODES = ["blocks", "braille", "ascii", "mono"];
 let modeIdx = Math.max(0, MODES.indexOf(process.env.MODE ?? "blocks"));
 const extra = process.argv.length > 2 ? process.argv.slice(2) : ["-warp", "1", "-skill", "3"];
+const NARRATE = process.env.NARRATE === "1";   // route through narrator/wrap.mjs for N lines
+const narr = path.join(engineDir, "..", "narrator", "wrap.mjs");
 const child = FAKE ? spawn("node", [path.join(here, "fake-engine.mjs")], { stdio: ["pipe", "pipe", "ignore"] })
-                   : spawn(bin, ["-iwad", wad, ...extra], { stdio: ["pipe", "pipe", "ignore"] });
+           : NARRATE ? spawn("node", [narr, "--", "-iwad", wad, ...extra], { stdio: ["pipe", "pipe", "ignore"] })
+                     : spawn(bin, ["-iwad", wad, ...extra], { stdio: ["pipe", "pipe", "ignore"] });
 const send = s => child.stdin.write(s + "\n");
 
 const STATUS_ROWS = 2;
-const size = () => send(`s ${process.stdout.columns} ${process.stdout.rows - STATUS_ROWS}`);
+const size = () => send(`s ${process.stdout.columns || 80} ${(process.stdout.rows || 24) - STATUS_ROWS}`);
 process.stdout.on("resize", size);
 
 process.stdin.setRawMode(true);
@@ -67,6 +70,7 @@ child.stdout.on("data", chunk => {
     acc = acc.slice(nl + 1);
     if (line.startsWith("S ")) stat = line.slice(2);
     else if (line.startsWith("L ")) log = line.slice(2);
+    else if (line.startsWith("N ")) log = "\x1b[38;2;215;119;87m✻\x1b[0m " + line.slice(2);
   }
 });
 

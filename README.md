@@ -9,7 +9,12 @@ Real Doom running inside a terminal UI that looks like Claude Code 2.1.
 ## Run
 
 ```sh
-make -C engine            # first run downloads doomgeneric and Freedoom
-node engine/dev/play.mjs  # raw engine, no chrome
-# UI: see ui/README.md
+cp .env.example .env      # put ANTHROPIC_API_KEY in it for live narration (optional)
+./demo.sh                 # builds engine, starts the UI if ui/ exists, else the raw player
+./demo.sh raw             # raw player with Claude narration, no chrome
 ```
+
+Raw player keys: arrows/WASD move, `f` fire, space use, Esc menu, backtick cycles render modes
+(blocks, braille, ascii, mono), `g` god mode, `k` all weapons, Ctrl-C quits.
+
+- `narrator/`: `node narrator/wrap.mjs` wraps the engine and adds `N <text>` lines from `claude-fable-5-1`.
