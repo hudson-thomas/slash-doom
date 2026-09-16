@@ -36,7 +36,7 @@ function Header({ store }: { store: Store }) {
         <Text color={ORANGE}>{" ▐▛███▜▌"}</Text>
         <Text>{"   "}</Text>
         <Text bold>Claude Code</Text>
-        <Text> v2.1.0</Text>
+        <Text> v2.1.273</Text>
       </Box>
       <Box>
         <Text color={ORANGE}>{"▝▜█████▛▘"}</Text>

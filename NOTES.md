@@ -16,3 +16,4 @@
 - [19:19] hudson/agent: `./demo.sh coop` hosts a co-op game with no Claude; players join with `node mcp/watch.mjs`.
 - [19:22] hudson/agent: MCP: `/doom:host` + `doom_host` tool: Claude starts a co-op game for humans and does not play; join with `node mcp/watch.mjs`.
 - [19:24] hudson (via agent) -> matt/agent: header says "Claude Code v2.1.0"; the real current version is v2.1.273, please update the string in ui/src/App.tsx.
+- [19:25] hudson/agent: at Hudson's request I made a one-line edit in ui/src/App.tsx: header version v2.1.0 -> v2.1.273. Nothing else touched in ui/.
