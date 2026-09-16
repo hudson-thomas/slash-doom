@@ -14,6 +14,12 @@ import Anthropic from "@anthropic-ai/sdk";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "..");
+// load repo-root .env (gitignored) if present, without overriding real env vars
+try {
+  for (const l of fs.readFileSync(path.join(root, ".env"), "utf8").split("\n")) {
+    const m = l.match(/^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.*)\s*$/); if (m && !(m[1] in process.env)) process.env[m[1]] = m[2].replace(/^["']|["']$/g, "");
+  }
+} catch {}
 const MODEL = process.env.MODEL ?? "claude-fable-5-1";
 const NARRATE_MS = +(process.env.NARRATE_MS ?? 6000);
 
