@@ -16,7 +16,7 @@
 #include <unistd.h>
 
 #define KEYQUEUE_SIZE 64
-#define RELEASE_MS 180
+static int release_ms = 180;
 #define MIN_FRAME_MS 50   /* ~20 fps */
 #define MAX_COLS 400
 #define MAX_ROWS 200
@@ -94,8 +94,11 @@ static void *reader_thread(void *arg) {
             int k = name_to_key(line + 2);
             if (k >= 0) {
                 if (!held_until[k]) enqueue(1, (unsigned char)k);
-                held_until[k] = now_ms() + RELEASE_MS;
+                held_until[k] = now_ms() + release_ms;
             }
+        } else if (line[0] == 'r') {
+            int ms = atoi(line + 1);
+            if (ms >= 30 && ms <= 2000) release_ms = ms;
         } else if (line[0] == 'q') {
             pthread_mutex_unlock(&lock);
             exit(0);
@@ -130,18 +133,34 @@ void DG_Init(void) {
 static char frame_buf[MAX_ROWS * (MAX_COLS * 48 + 16) + 64];
 
 static void emit_frame(int c, int r) {
-    int px_h = r * 2;
+    /* Fit a 4:3 image (Doom's intended aspect) inside c x 2r pixels, centered, black bars. */
+    int px_w = c, px_h = r * 2;
+    if (px_w * 3 > px_h * 4) px_w = px_h * 4 / 3; else px_h = px_w * 3 / 4;
+    if (px_h < 2) px_h = 2;
+    int x0 = (c - px_w) / 2;
+    int y0 = ((r * 2 - px_h) / 2) & ~1;           /* even so cells align */
+    int row0 = y0 / 2, row1 = row0 + (px_h + 1) / 2;
     char *p = frame_buf;
     p += sprintf(p, "F %d\n", r);
-    int prev_fg = -1, prev_bg = -1;
     for (int y = 0; y < r; y++) {
-        int sy0 = (y * 2) * DOOMGENERIC_RESY / px_h;
-        int sy1 = (y * 2 + 1) * DOOMGENERIC_RESY / px_h;
-        prev_fg = prev_bg = -1;
+        int prev_fg = -1, prev_bg = -1;
+        if (y < row0 || y >= row1) {
+            p += sprintf(p, "\x1b[0m\x1b[38;2;0;0;0m\x1b[48;2;0;0;0m");
+            for (int x = 0; x < c; x++) { memcpy(p, "\xe2\x96\x80", 3); p += 3; }
+            memcpy(p, "\x1b[0m\n", 5); p += 5;
+            continue;
+        }
+        int sy0 = ((y - row0) * 2) * DOOMGENERIC_RESY / px_h;
+        int sy1 = ((y - row0) * 2 + 1) * DOOMGENERIC_RESY / px_h;
+        if (sy0 >= DOOMGENERIC_RESY) sy0 = DOOMGENERIC_RESY - 1;
+        if (sy1 >= DOOMGENERIC_RESY) sy1 = DOOMGENERIC_RESY - 1;
         for (int x = 0; x < c; x++) {
-            int sx = x * DOOMGENERIC_RESX / c;
-            uint32_t top = DG_ScreenBuffer[sy0 * DOOMGENERIC_RESX + sx] & 0xffffff;
-            uint32_t bot = DG_ScreenBuffer[sy1 * DOOMGENERIC_RESX + sx] & 0xffffff;
+            uint32_t top = 0, bot = 0;
+            if (x >= x0 && x < x0 + px_w) {
+                int sx = (x - x0) * DOOMGENERIC_RESX / px_w;
+                top = DG_ScreenBuffer[sy0 * DOOMGENERIC_RESX + sx] & 0xffffff;
+                bot = DG_ScreenBuffer[sy1 * DOOMGENERIC_RESX + sx] & 0xffffff;
+            }
             if ((int)top != prev_fg) {
                 p += sprintf(p, "\x1b[38;2;%u;%u;%um", (top >> 16) & 255, (top >> 8) & 255, top & 255);
                 prev_fg = (int)top;
@@ -150,7 +169,7 @@ static void emit_frame(int c, int r) {
                 p += sprintf(p, "\x1b[48;2;%u;%u;%um", (bot >> 16) & 255, (bot >> 8) & 255, bot & 255);
                 prev_bg = (int)bot;
             }
-            memcpy(p, "\xe2\x96\x80", 3); p += 3;   /* ▀ */
+            memcpy(p, "\xe2\x96\x80", 3); p += 3;   /* upper half block */
         }
         memcpy(p, "\x1b[0m\n", 5); p += 5;
     }

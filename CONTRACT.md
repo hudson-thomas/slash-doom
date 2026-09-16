@@ -17,6 +17,7 @@ Build with `make -C engine` (downloads doomgeneric + Freedoom on first run).
 |-------------------|---------|
 | `s <cols> <rows>` | Set frame size in terminal cells. Each cell holds 2 vertical pixels, so effective resolution is cols x 2*rows. Send on start and on terminal resize. |
 | `k <name>`        | Key press. The engine auto-releases after ~180 ms without a repeat (terminals never send key-up). UI never sends releases, just forward every keypress event. |
+| `r <ms>`          | Optional. Auto-release delay for held keys, default 180. Raise if movement stutters, lower if turning overshoots. |
 | `q`               | Quit cleanly. |
 
 Key names: `up down left right fire use run enter esc tab pause y n 1 2 3 4 5 6 7`
@@ -28,7 +29,7 @@ Doom-native, optional).
 
 | Line | Meaning |
 |------|---------|
-| `F <rows>` then exactly `rows` lines | One frame. Each line is a complete ANSI truecolor row (`\e[38;2;r;g;bm\e[48;2;r;g;bm▀`... ending `\e[0m`). Print each verbatim; no wrapping needed if cols <= terminal width. |
+| `F <rows>` then exactly `rows` lines | One frame. Each line is a complete ANSI truecolor row (`\e[38;2;r;g;bm\e[48;2;r;g;bm▀`... ending `\e[0m`). Print each verbatim; no wrapping needed if cols <= terminal width. The image is letterboxed to 4:3 inside the box (black bars), so give the engine the whole available area. |
 | `S health=<n> armor=<n> ammo=<n> kills=<n> items=<n> secrets=<n> map=E1M1 tics=<n>` | Game stats, once per frame. Use for the fake token/cost line. |
 | `L <text>` | Doom's on-screen messages ("Picked up a shotgun.") and engine notices. Show as fake tool-call/thinking text. |
 
