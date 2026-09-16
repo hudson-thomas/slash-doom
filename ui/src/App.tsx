@@ -4,6 +4,7 @@ import { Box, Text } from "ink";
 import type { Store } from "./store.js";
 import { DIM, ORANGE, SPINNER_GLYPHS, VERBS, VERB_THRESHOLDS } from "./theme.js";
 import { LOG_ROWS } from "./layout.js";
+import { Clawd } from "./Clawd.js";
 
 const TICK_MS = 125; // 8 Hz chrome refresh; frames paint independently at engine rate
 
@@ -16,7 +17,7 @@ export function App({ store }: { store: Store }) {
   const { layout } = store;
   return (
     <Box flexDirection="column" width={layout.cols} height={layout.totalRows}>
-      <Header store={store} />
+      <Header store={store} tick={tick} />
       <Box height={1} />
       <Box height={layout.frameRows} />
       <Box height={1} />
@@ -27,26 +28,19 @@ export function App({ store }: { store: Store }) {
   );
 }
 
-function Header({ store }: { store: Store }) {
+function Header({ store, tick }: { store: Store; tick: number }) {
   const { weapon, map, sector } = store.stats;
   const cwd = `~/doomclaude/${map}/sector-${sector}`;
   return (
-    <Box flexDirection="column">
-      <Box>
-        <Text color={ORANGE}>{" ▐▛███▜▌"}</Text>
-        <Text>{"   "}</Text>
-        <Text bold>Claude Code</Text>
-        <Text> v2.1.273</Text>
-      </Box>
-      <Box>
-        <Text color={ORANGE}>{"▝▜█████▛▘"}</Text>
-        <Text>{"  "}</Text>
+    <Box flexDirection="row">
+      <Clawd store={store} tick={tick} />
+      <Box flexDirection="column">
+        <Text>
+          <Text bold>Claude Code</Text>
+          <Text> v2.1.273</Text>
+        </Text>
         <Text color={DIM}>Fable 5.1 · {weapon} with medium effort</Text>
-      </Box>
-      <Box>
-        <Text color={ORANGE}>{"  ▘▘ ▝▝"}</Text>
-        <Text>{"    "}</Text>
-        <Text color={DIM} wrap="truncate-end">{cwd}</Text>
+        <Text color={DIM}>{cwd}</Text>
       </Box>
     </Box>
   );
