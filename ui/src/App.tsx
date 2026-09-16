@@ -46,7 +46,7 @@ function Header({ store }: { store: Store }) {
       <Box>
         <Text color={ORANGE}>{"  ▘▘ ▝▝"}</Text>
         <Text>{"    "}</Text>
-        <Text color={DIM}>{cwd}</Text>
+        <Text color={DIM} wrap="truncate-end">{cwd}</Text>
       </Box>
     </Box>
   );
@@ -58,12 +58,13 @@ function ToolLog({ store }: { store: Store }) {
     <Box flexDirection="column" height={LOG_ROWS}>
       {entries.map((e, i) => (
         <Box key={`${store.log.length}-${i}`} flexDirection="column">
-          <Text>
+          {/* truncate: a wrapped line would push every row below it and leave stale text */}
+          <Text wrap="truncate-end">
             <Text color={ORANGE}>⏺ </Text>
             <Text bold>{e.tool}</Text>
             <Text>({e.arg})</Text>
           </Text>
-          <Text color={e.error ? "red" : DIM}>
+          <Text color={e.error ? "red" : DIM} wrap="truncate-end">
             {"  ⎿  "}
             {e.result}
           </Text>
@@ -82,13 +83,15 @@ function Spinner({ store, tick }: { store: Store; tick: number }) {
   const override = store.override && store.override.until > Date.now() ? store.override.text : null;
   const text = override ?? (store.narration || `${verb}…`);
   const elapsed = Math.floor((Date.now() - store.startedAt) / 1000);
+  const suffix = `(esc to interrupt · ${elapsed}s)`;
+  // keep the whole line on one row: trim the narration so the suffix always fits
+  const room = store.layout.cols - 2 - suffix.length - 3;
+  const shown = text.length > room ? text.slice(0, Math.max(0, room - 1)) + "…" : text;
   return (
-    <Text>
+    <Text wrap="truncate-end">
       <Text color={ORANGE}>{glyph} </Text>
-      <Text color={ORANGE}>{text} </Text>
-      <Text color={DIM}>
-        (esc to interrupt · {elapsed}s · ↑ {fmtTokens(tokens(store))} tokens)
-      </Text>
+      <Text color={ORANGE}>{shown} </Text>
+      <Text color={DIM}>{suffix}</Text>
     </Text>
   );
 }
@@ -97,7 +100,7 @@ function StatusLine({ store }: { store: Store }) {
   const s = store.stats;
   const cost = (tokens(store) / 1e6) * 15;
   return (
-    <Text color={DIM}>
+    <Text color={DIM} wrap="truncate-end">
       {"  "}↓ {fmtTokens(tokens(store))} tokens · ${cost.toFixed(2)} · health {s.health}% · armor {s.armor} · ammo {s.ammo} · kills {s.kills} · {s.map} · {store.fps}fps · {store.mode}
     </Text>
   );
