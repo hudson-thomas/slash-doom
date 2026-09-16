@@ -41,6 +41,8 @@ static const char RAMP[] = " .:-=+*#%@";
 static unsigned char lum_lut[256]; /* gamma-stretched luminance -> ramp index */
 static uint32_t last_frame_ms = 0;
 static char last_msg[256] = "";
+static int last_state = -1, last_gs = -1, last_kills = 0, last_health = 100;
+static volatile int want_snapshot = 0;
 
 static uint32_t now_ms(void) {
     struct timespec ts; clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -117,6 +119,8 @@ static void *reader_thread(void *arg) {
                 enqueue(1, (unsigned char)k);
                 enqueue(0, (unsigned char)k);
             }
+        } else if (line[0] == 'a') {
+            want_snapshot = 1;            /* emit one "A <rows>" mono snapshot (80x24) */
         } else if (line[0] == 'f') {
             int fps = atoi(line + 1);
             if (fps >= 1 && fps <= 35) min_frame_ms = 1000 / fps;
@@ -205,15 +209,15 @@ static void emit_frame(int c, int r) {
 }
 
 /* ASCII modes: one char per cell from a luminance ramp; ascii = coloured fg, mono = plain text. */
-static void emit_frame_ascii(int c, int r, int colour) {
+static void emit_frame_ascii_to(char *dst, int c, int r, int colour, int snapshot) {
     int px_w = c, px_h = r * 2;
     if (px_w * 3 > px_h * 4) px_w = px_h * 4 / 3; else px_h = px_w * 3 / 4;
     if (px_h < 2) px_h = 2;
     int x0 = (c - px_w) / 2;
     int y0 = ((r * 2 - px_h) / 2) & ~1;
     int row0 = y0 / 2, row1 = row0 + (px_h + 1) / 2;
-    char *p = frame_buf;
-    p += sprintf(p, "F %d\n", r);
+    char *p = dst;
+    p += sprintf(p, "%c %d\n", snapshot ? 'A' : 'F', r);
     for (int y = 0; y < r; y++) {
         int prev_fg = -1;
         for (int x = 0; x < c; x++) {
@@ -233,7 +237,9 @@ static void emit_frame_ascii(int c, int r, int colour) {
                 /* brighten colour so dark ramp chars stay legible */
                 int boost = 255 - lum; 
                 rr += (boost * rr) / 512; gg += (boost * gg) / 512; bb += (boost * bb) / 512;
-                if (rr > 255) rr = 255; if (gg > 255) gg = 255; if (bb > 255) bb = 255;
+                if (rr > 255) rr = 255;
+                if (gg > 255) gg = 255;
+                if (bb > 255) bb = 255;
                 col = ((uint32_t)rr << 16) | ((uint32_t)gg << 8) | (uint32_t)bb;
             }
             if (colour && ch != ' ' && (int)col != prev_fg) {
@@ -245,8 +251,10 @@ static void emit_frame_ascii(int c, int r, int colour) {
         if (colour) { memcpy(p, "\x1b[0m", 4); p += 4; }
         *p++ = '\n';
     }
-    out_write(frame_buf, (size_t)(p - frame_buf));
+    out_write(dst, (size_t)(p - dst));
 }
+
+static void emit_frame_ascii(int c, int r, int colour) { emit_frame_ascii_to(frame_buf, c, r, colour, 0); }
 
 /* Braille mode: 2x4 dots per cell, ordered dither on gamma-lifted luminance, fg = cell colour. */
 static const int BAYER[4][4] = { {0,8,2,10}, {12,4,14,6}, {3,11,1,9}, {15,7,13,5} };
@@ -315,6 +323,26 @@ static void emit_stats(void) {
              pl->health, pl->armorpoints, ammo, pl->killcount, pl->itemcount,
              pl->secretcount, gameepisode, gamemap, gametic, wname, px, py, pang, sec);
     out_line(buf);
+    /* E events: transitions the UI/narrator care about */
+    if (last_state != -1) {
+        if (pl->playerstate == PST_DEAD && last_state != PST_DEAD) out_line("E dead");
+        if (pl->playerstate == PST_LIVE && last_state == PST_DEAD) out_line("E respawn");
+        if (gamestate == GS_INTERMISSION && last_gs != GS_INTERMISSION) out_line("E level-done");
+        if (gamestate == GS_LEVEL && last_gs == GS_INTERMISSION) out_line("E level-start");
+        if (pl->killcount > last_kills) { snprintf(buf, sizeof buf, "E kill %d", pl->killcount); out_line(buf); }
+        if (pl->health < last_health - 15) { snprintf(buf, sizeof buf, "E hurt %d", last_health - pl->health); out_line(buf); }
+    }
+    last_state = pl->playerstate; last_gs = gamestate; last_kills = pl->killcount; last_health = pl->health;
+    if (want_snapshot) {
+        want_snapshot = 0;
+        /* 80x24 mono snapshot for narration; reuse ascii encoder into a side buffer */
+        static char save[sizeof frame_buf];
+        (void)save;
+        int c = 80, r = 24;
+        /* emit_frame_ascii writes "F <r>" header; patch it to "A" */
+        char *start = frame_buf;
+        emit_frame_ascii_to(start, c, r, 0, 1);
+    }
     if (pl->message && strcmp(pl->message, last_msg) != 0) {
         snprintf(last_msg, sizeof last_msg, "%s", pl->message);
         snprintf(buf, sizeof buf, "L %s", last_msg);

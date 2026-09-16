@@ -1,0 +1,9 @@
+{
+  "name": "fablenight-narrator",
+  "private": true,
+  "type": "module",
+  "version": "0.1.0",
+  "description": "Proxies the engine protocol and adds N <text> narration lines from Claude",
+  "scripts": { "start": "node wrap.mjs" },
+  "dependencies": { "@anthropic-ai/sdk": "^0.80.0" }
+}

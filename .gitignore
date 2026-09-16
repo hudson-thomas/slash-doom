@@ -5,3 +5,5 @@ engine/wads/*.wad
 engine/wads/*.zip
 .env
 *.log
+.default.cfg
+.savegame/

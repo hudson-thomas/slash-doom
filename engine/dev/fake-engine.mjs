@@ -15,7 +15,9 @@ rl.on("line", l => {
   else if (c === "m") mode = a[0];
   else if (c === "f") fps = Math.max(1, Math.min(35, +a[0] | 0));
   else if (c === "k") { lastKey = a[0]; if (a[0] === "fire" && ammo > 0) { ammo--; if (Math.random() < 0.3) { kills++; pending.push("L Killed an imp."); } } }
+  else if (c === "c" && a[0] === "die") { health = 0; pending.push("E hurt 100", "E dead"); setTimeout(() => { health = 100; pending.push("E respawn"); }, 3000); }
   else if (c === "c") pending.push(a[0] === "iddqd" ? "L Degreelessness Mode On" : `L typed ${a[0]}`);
+  else if (c === "a") { const out = ["A 24"]; for (let r = 0; r < 24; r++) out.push((r < 12 ? "=" : "-").repeat(80)); pending.push(...out); }
   else if (c === "q") process.exit(0);
 });
 rl.on("close", () => process.exit(0));
