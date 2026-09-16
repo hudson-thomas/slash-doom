@@ -6,6 +6,9 @@
 #include "doomstat.h"
 #include "d_player.h"
 #include "d_items.h"
+#include "p_mobj.h"
+#include "r_state.h"
+#include "m_fixed.h"
 
 #include <ctype.h>
 #include <pthread.h>
@@ -293,11 +296,21 @@ static void emit_stats(void) {
         ammotype_t at = weaponinfo[pl->readyweapon].ammo;
         if (at >= 0 && at < NUMAMMO) ammo = pl->ammo[at];
     }
+    static const char *WEAPON[NUMWEAPONS] = { "fist", "pistol", "shotgun", "chaingun",
+        "rocket-launcher", "plasma-rifle", "bfg9000", "chainsaw", "super-shotgun" };
+    const char *wname = (pl->readyweapon >= 0 && pl->readyweapon < NUMWEAPONS) ? WEAPON[pl->readyweapon] : "none";
+    int px = 0, py = 0, pang = 0, sec = -1;
+    if (pl->mo) {
+        px = pl->mo->x >> FRACBITS; py = pl->mo->y >> FRACBITS;
+        pang = (int)(((uint64_t)pl->mo->angle * 360) >> 32);
+        if (pl->mo->subsector && pl->mo->subsector->sector) sec = (int)(pl->mo->subsector->sector - sectors);
+    }
     char buf[512];
     snprintf(buf, sizeof buf,
-             "S health=%d armor=%d ammo=%d kills=%d items=%d secrets=%d map=E%dM%d tics=%d",
+             "S health=%d armor=%d ammo=%d kills=%d items=%d secrets=%d map=E%dM%d tics=%d "
+             "weapon=%s x=%d y=%d angle=%d sector=%d",
              pl->health, pl->armorpoints, ammo, pl->killcount, pl->itemcount,
-             pl->secretcount, gameepisode, gamemap, gametic);
+             pl->secretcount, gameepisode, gamemap, gametic, wname, px, py, pang, sec);
     out_line(buf);
     if (pl->message && strcmp(pl->message, last_msg) != 0) {
         snprintf(last_msg, sizeof last_msg, "%s", pl->message);

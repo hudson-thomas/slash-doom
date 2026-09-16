@@ -32,7 +32,7 @@ Doom-native, optional).
 | Line | Meaning |
 |------|---------|
 | `F <rows>` then exactly `rows` lines | One frame. Each line is a complete ANSI truecolor row (`\e[38;2;r;g;bm\e[48;2;r;g;bm▀`... ending `\e[0m`). Print each verbatim; no wrapping needed if cols <= terminal width. The image is letterboxed to 4:3 inside the box (black bars), so give the engine the whole available area. |
-| `S health=<n> armor=<n> ammo=<n> kills=<n> items=<n> secrets=<n> map=E1M1 tics=<n>` | Game stats, once per frame. Use for the fake token/cost line. |
+| `S health=<n> armor=<n> ammo=<n> kills=<n> items=<n> secrets=<n> map=E1M1 tics=<n> weapon=<name> x=<n> y=<n> angle=<0-359> sector=<n>` | Game stats, once per frame. Use for the fake token/cost line. `weapon` is a slug like `shotgun` (fake model line: "shotgun with medium effort"); `sector` is the current map sector (fake cwd: `~/E1M1/sector-42`). Parse as key=value pairs and ignore unknown keys; more may be added. |
 | `L <text>` | Doom's on-screen messages ("Picked up a shotgun.") and engine notices. Show as fake tool-call/thinking text. |
 
 Frame rate is capped at ~20 fps by the engine. Frames are only emitted after an `s` line.
