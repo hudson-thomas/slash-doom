@@ -19,6 +19,7 @@ Build with `make -C engine` (downloads doomgeneric + Freedoom on first run).
 | `k <name>`        | Key press. The engine auto-releases after ~180 ms without a repeat (terminals never send key-up). UI never sends releases, just forward every keypress event. |
 | `m <mode>`        | Render mode: `blocks` (default, truecolor half-blocks), `ascii` (coloured ASCII luminance ramp, one char per cell), `mono` (plain ASCII, zero escape codes), `braille` (2x4 dithered dots per cell, coloured, sharpest text-only look). Switch any time. |
 | `c <text>`        | Type a string into Doom as keypresses. Cheats: `c iddqd` god mode, `c idkfa` all weapons/keys, `c idclip` no-clip, `c idclev15` warp to E1M5, `c iddt` (twice, with automap open via `k tab`) reveal map. |
+| `f <fps>`         | Optional. Frame rate cap, 1..35, default 20. Lower it if the UI cannot keep up. |
 | `r <ms>`          | Optional. Auto-release delay for held keys, default 180. Raise if movement stutters, lower if turning overshoots. |
 | `q`               | Quit cleanly. |
 

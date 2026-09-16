@@ -21,7 +21,7 @@
 
 #define KEYQUEUE_SIZE 64
 static int release_ms = 180;
-#define MIN_FRAME_MS 50   /* ~20 fps */
+static int min_frame_ms = 50;   /* ~20 fps, set via "f <fps>" */
 #define MAX_COLS 400
 #define MAX_ROWS 200
 
@@ -117,6 +117,9 @@ static void *reader_thread(void *arg) {
                 enqueue(1, (unsigned char)k);
                 enqueue(0, (unsigned char)k);
             }
+        } else if (line[0] == 'f') {
+            int fps = atoi(line + 1);
+            if (fps >= 1 && fps <= 35) min_frame_ms = 1000 / fps;
         } else if (line[0] == 'r') {
             int ms = atoi(line + 1);
             if (ms >= 30 && ms <= 2000) release_ms = ms;
@@ -321,7 +324,7 @@ static void emit_stats(void) {
 
 void DG_DrawFrame(void) {
     uint32_t t = now_ms();
-    if ((int32_t)(t - last_frame_ms) < MIN_FRAME_MS) return;
+    if ((int32_t)(t - last_frame_ms) < min_frame_ms) return;
     last_frame_ms = t;
     pthread_mutex_lock(&lock);
     int c = cols, r = rows;
