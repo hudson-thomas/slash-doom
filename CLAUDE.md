@@ -1,7 +1,7 @@
-# FableNight — Claude Build Night Hackathon
+# /doom (FableNight) — Claude Build Night Hackathon
 
 A 2-hour hackathon project built with Fable 5.1. **Two people, each with their own Claude Code agent**, are
-pushing to the same repo: `hudson-thomas/FableNight` (private, owned by hudson-thomas).
+pushing to the same repo: `hudson-thomas/slash-doom` (private, owned by hudson-thomas).
 We haven't picked the project yet. When we do, update **Project** below.
 
 ## Project

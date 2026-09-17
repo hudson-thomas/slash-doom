@@ -1,4 +1,6 @@
-# FableNight: Doom, with medium effort
+# /doom
+
+Slash Doom: Doom, with medium effort. (Repo: `slash-doom`, built at Claude Build Night as FableNight.)
 
 Real Doom running inside a terminal UI that looks like Claude Code 2.1.
 
@@ -18,4 +20,6 @@ Raw player keys: arrows/WASD move, `f` fire, space use, Esc menu, backtick cycle
 (blocks, braille, ascii, mono), `g` god mode, `k` all weapons, Ctrl-C quits.
 
 - `mcp/`: MCP server so real Claude Code can play Doom (`doom_look`/`doom_press`). See `mcp/README.md`.
+- `/doom [map] [skill]`: project slash command (`.claude/commands/doom.md`). In real Claude Code, in this repo, with the
+  MCP server registered: Claude plays Doom and narrates it.
 - `narrator/`: `node narrator/wrap.mjs` wraps the engine and adds `N <text>` lines from `claude-fable-5-1`.
