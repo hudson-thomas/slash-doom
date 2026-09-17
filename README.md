@@ -4,8 +4,10 @@ Slash Doom: Claude Code plays Doom, with medium effort.
 
 Type `/doom` in real Claude Code and Claude plays real Doom (doomgeneric + Freedoom): it looks at the screen, presses
 keys through MCP tools, and narrates every move in its calmest spinner voice. You can watch in full colour and grab
-the controls too; everyone drives the same marine. Built in two hours at Claude Build Night (as "FableNight") by two
-people and their Claude Code agents.
+the controls too; everyone drives the same marine.
+
+Built in two hours at the Claude Fable 5.1 Build Night in Brisbane, Australia by
+[@hudson-thomas](https://github.com/hudson-thomas) and [@mb-910](https://github.com/mb-910).
 
 ## Play it in Claude Code
 
