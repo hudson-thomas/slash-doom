@@ -1,8 +1,0 @@
-{
-  "name": "fablenight",
-  "metadata": { "description": "FableNight hackathon: Doom inside Claude Code." },
-  "owner": { "name": "Hudson Thomas" },
-  "plugins": [
-    { "name": "doom", "source": "./", "description": "Claude Code plays Doom: MCP tools plus /doom:play and /doom:host." }
-  ]
-}

@@ -2,7 +2,7 @@
 // MCP server: lets Claude Code play Doom through the engine protocol (see ../CONTRACT.md).
 // Tools: doom_start, doom_look, doom_press, doom_type, doom_stop. stdio transport.
 // Nothing here touches engine/ or ui/; it only spawns engine/build/doom-term (or the fake engine).
-import { spawn, spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import net from "node:net";
 import os from "node:os";
 import { fileURLToPath } from "node:url";
@@ -52,32 +52,6 @@ function applyWatcherView() {
   if (!eng) return;
   if (watchers.size && watcherSize) { send(watcherSize); send("m blocks"); send("f 20"); }
   else { send(`s ${SNAP_COLS} ${SNAP_ROWS}`); send("m mono"); send("f 5"); }
-}
-
-// ---------------------------------------------------------------- player window -----------
-// Open the playable view (watch.mjs) for the human: tmux split if we are in tmux, else a new terminal window.
-// DOOM_WINDOW=0 disables. Returns a description of what was opened, or null.
-function openWindow() {
-  if (process.env.DOOM_WINDOW === "0" || watchers.size > 0) return null;
-  const node = process.execPath, watch = path.join(root, "mcp/watch.mjs");
-  const env = { ...process.env, DOOM_SOCK: SOCK };
-  const sh = `DOOM_SOCK='${SOCK}' '${node}' '${watch}'`;
-  const tries = [];
-  if (process.env.TMUX) tries.push(["tmux split", "tmux", ["split-window", "-h", sh]]);
-  if (process.platform === "darwin") tries.push(["Terminal window", "osascript", ["-e", `tell application "Terminal" to do script "${sh}"`, "-e", 'tell application "Terminal" to activate']]);
-  const t = "Doom (Claude Code)";
-  for (const [bin, args] of [
-    [process.env.TERMINAL, ["-e", node, watch]],
-    ["kitty", ["--title", t, node, watch]], ["ghostty", ["-e", node, watch]], ["wezterm", ["start", "--", node, watch]],
-    ["alacritty", ["-T", t, "-e", node, watch]], ["foot", ["-T", t, node, watch]],
-    ["gnome-terminal", ["--title", t, "--", node, watch]], ["konsole", ["-e", node, watch]], ["xterm", ["-T", t, "-e", node, watch]],
-  ]) if (bin) tries.push([`${path.basename(bin)} window`, bin, args]);
-  for (const [what, bin, args] of tries) {
-    const r = spawnSync("sh", ["-c", `command -v "$0" >/dev/null`, bin]);
-    if (r.status !== 0) continue;
-    try { spawn(bin, args, { env, detached: true, stdio: "ignore" }).on("error", () => {}).unref(); return what; } catch {}
-  }
-  return null;
 }
 
 // ---------------------------------------------------------------- engine process ----------
@@ -214,12 +188,11 @@ with doom_say before each move: calm, first person, Claude Code spinner voice, c
 server.registerTool("doom_start", {
   title: "Start Doom",
   description: "Start (or restart) a Doom game and return the first look. map 1-9 is E1Mx. skill 1 (easy) to 5 (nightmare).",
-  inputSchema: { map: z.number().int().min(1).max(9).default(1), skill: z.number().int().min(1).max(5).default(2), mock: z.boolean().default(false).describe("use the Doom-free test pattern engine"), window: z.boolean().default(true).describe("open a game window so the user can watch and play along") },
-}, async ({ map, skill, mock, window }) => {
+  inputSchema: { map: z.number().int().min(1).max(9).default(1), skill: z.number().int().min(1).max(5).default(2), mock: z.boolean().default(false).describe("use the Doom-free test pattern engine") },
+}, async ({ map, skill, mock }) => {
   const fake = startEngine({ mock, skill, map });
-  const win = window ? openWindow() : null;
   await sleep(fake ? 500 : 2500);
-  return { content: await lookContent((fake ? "(fake engine: real engine not built)\n" : "") + (win ? `(opened a ${win} where the user can watch and play along)\n` : "")) };
+  return { content: await lookContent(fake ? "(fake engine: real engine not built)\n" : "") };
 });
 
 server.registerTool("doom_host", {
@@ -228,13 +201,12 @@ server.registerTool("doom_host", {
   inputSchema: { map: z.number().int().min(1).max(9).default(1), skill: z.number().int().min(1).max(5).default(3) },
 }, async ({ map, skill }) => {
   const fake = startEngine({ mock: false, skill, map });
-  const win = openWindow();
   await sleep(fake ? 500 : 2000);
   toWatcher("T hosted by Claude Code: humans, you have the controls");
   const n = watchers.size;
   return { content: [{ type: "text", text:
     `${fake ? "(fake engine: real engine not built)\n" : ""}Hosting E1M${map} on skill ${skill}. ${n} player${n === 1 ? "" : "s"} connected.\n` +
-    (win ? `Opened a ${win} with the game; the user can play there now. ` : "") + `More players join from any terminal with:\n\n    node mcp/watch.mjs\n\n` +
+    `Players join from any terminal with:\n\n    node mcp/watch.mjs\n\n` +
     `Keys: arrows/WASD move, f fire, space use, g god mode, backtick quits. Everyone drives the same marine. ` +
     `Claude is not playing; call doom_look for commentary or doom_press only if asked to join.` }] };
 });
