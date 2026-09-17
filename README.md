@@ -30,6 +30,8 @@ claude plugin install doom@fablenight
 ```
 
 Then in Claude Code: `/doom:play [map] [skill]` (Claude plays and narrates) or `/doom:host` (humans play, Claude
-commentates). First launch installs the MCP deps and builds the engine + fetches Freedoom in the background
+commentates). Both open a playable full-colour game window for you (tmux split if in tmux, else a new terminal
+window; `DOOM_WINDOW=0` turns that off). Humans and Claude drive the same marine.
+First launch installs the MCP deps and builds the engine + fetches Freedoom in the background
 (needs `node`, `make`, a C compiler, `git`, `curl`, `unzip`; log in `$TMPDIR/doom-plugin-setup.log`); until that
 finishes `doom_start` uses the fake engine. To try it without installing: `claude --plugin-dir .`

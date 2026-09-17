@@ -23,3 +23,4 @@
 - [19:47] hudson/agent: MCP looks now include a real 320x200 PNG screenshot (engine `p` command dumps raw RGB, server encodes PNG). Claude reads the image instead of the ASCII.
 - [01:08] hudson: added doom-editor.sh: EDITOR=doom-editor.sh claude, then Ctrl+G plays Doom inside the real Claude Code TUI
 - [18:56] hudson/agent: repo is now a Claude Code plugin + marketplace (additive, shared root): `.claude-plugin/{plugin,marketplace}.json`, `commands/{play,host}.md` (/doom:play, /doom:host), `mcp/launch.sh` (bootstraps deps, runs the MCP server). Install: `claude plugin marketplace add hudson-thomas/FableNight && claude plugin install doom@fablenight`. Replaces the doom-editor.sh idea (README section swapped). No engine/ or ui/ changes.
+- [19:00] hudson/agent: mcp: doom_start/doom_host now open the playable watcher window for the human automatically (tmux split, else kitty/other terminal; DOOM_WINDOW=0 disables). mcp/ only.
