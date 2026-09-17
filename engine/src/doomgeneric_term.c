@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 // Terminal backend for doomgeneric. See ../../CONTRACT.md for the protocol.
 // stdin:  "s <cols> <rows>", "k <name>", "q"
 // stdout: "F <rows>" + rows ANSI lines, "S key=val ...", "L <text>"

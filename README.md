@@ -23,3 +23,16 @@ Raw player keys: arrows/WASD move, `f` fire, space use, Esc menu, backtick cycle
 - `/doom [map] [skill]`: project slash command (`.claude/commands/doom.md`). In real Claude Code, in this repo, with the
   MCP server registered: Claude plays Doom and narrates it.
 - `narrator/`: `node narrator/wrap.mjs` wraps the engine and adds `N <text>` lines from `claude-fable-5-1`.
+
+## Licence
+
+GPL-2.0-or-later, see `LICENSE`. The engine links against
+Doom source code, which is GPL, so the project as a whole is too.
+
+Not included in this repo, fetched by `engine/get-deps.sh` at build time:
+
+- [doomgeneric](https://github.com/ozkl/doomgeneric) (GPL-2.0), based on id Software's Doom source and Chocolate Doom.
+- [Freedoom](https://freedoom.github.io/) game data (BSD-3-Clause).
+
+Not affiliated with or endorsed by Anthropic or id Software. "Claude" and "Claude Code" are trademarks of Anthropic;
+"Doom" is a trademark of id Software. The `ui/` Claude Code lookalike is a parody made for a hackathon.
