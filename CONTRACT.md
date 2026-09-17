@@ -22,6 +22,7 @@ Build with `make -C engine` (downloads doomgeneric + Freedoom on first run).
 | `f <fps>`         | Optional. Frame rate cap, 1..35, default 20. Lower it if the UI cannot keep up. |
 | `r <ms>`          | Optional. Auto-release delay for held keys, default 180. Raise if movement stutters, lower if turning overshoots. |
 | `a`               | Request one 80x24 mono `A` snapshot with the next frame. |
+| `p`               | Request one raw-pixel `P` frame (the full 320x200 framebuffer). Used for screenshots and for front ends that draw images instead of cells. |
 | `q`               | Quit cleanly. |
 
 Key names: `up down left right fire use run enter esc tab pause y n 1 2 3 4 5 6 7`
@@ -37,6 +38,7 @@ Doom-native, optional).
 | `S health=<n> armor=<n> ammo=<n> kills=<n> items=<n> secrets=<n> map=E1M1 tics=<n> weapon=<name> x=<n> y=<n> angle=<0-359> sector=<n>` | Game stats, once per frame. Use for the fake token/cost line. `weapon` is a slug like `shotgun` (fake model line: "shotgun with medium effort"); `sector` is the current map sector (fake cwd: `~/E1M1/sector-42`). Parse as key=value pairs and ignore unknown keys; more may be added. |
 | `E <event>` | Game events: `dead`, `respawn`, `level-done`, `level-start`, `kill <total>`, `hurt <amount>`. Use `dead` for the fake "API Error: 529 overloaded / compacting conversation" crash gag. |
 | `A <rows>` then `rows` lines | 80x24 plain-ASCII snapshot, only sent after an `a` request (used by the narrator; UIs can ignore). |
+| `P <w> <h>` then one base64 line | Raw RGB8 framebuffer, `w*h*3` bytes base64-encoded on a single line, only sent after a `p` request. Native resolution, no letterboxing, no scaling. Stretch to 4:3 for Doom's intended aspect. |
 | `N <text>` | One-line narration in Claude Code voice, emitted by `narrator/wrap.mjs` (not by the raw engine). Show as the spinner/thinking text. |
 | `L <text>` | Doom's on-screen messages ("Picked up a shotgun.") and engine notices. Show as fake tool-call/thinking text. |
 
