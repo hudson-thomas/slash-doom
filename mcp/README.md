@@ -25,6 +25,23 @@ node mcp/watch.mjs
 Full-colour view of the game Claude is playing, with Claude's key presses and Doom events listed underneath.
 Demo layout: Claude Code on the left, the watcher on the right. Backtick quits the watcher; the game keeps running.
 
+### Render modes
+
+The watcher picks the sharpest mode your terminal supports, from `TERM_PROGRAM`/`TERM`:
+
+| Terminal | Mode | What you get |
+|----------|------|--------------|
+| WezTerm, iTerm2 (also over ssh via `LC_TERMINAL`) | `iterm` | The real 320x200 framebuffer as an inline image, stretched to Doom's 4:3 |
+| Kitty, Ghostty | `kitty` | Same, via the Kitty graphics protocol |
+| Terminal.app, plain xterm, tmux | `blocks` | ANSI truecolor half-blocks, as before |
+
+`m` cycles between the image mode and blocks; `--mode=iterm|kitty|blocks|auto` forces one.
+
+Why it matters: in `blocks` the engine renders at terminal-cell resolution, and each cell is two pixels tall, so a
+default 80x24 window letterboxes Doom into roughly **53x40 pixels**. Height is the binding constraint, which is why
+the picture looks chunky with black bars down the sides. The image modes bypass the cell grid entirely. If you are
+stuck on `blocks`, a smaller font and a bigger window is the only lever: 200x60 cells gives you 200x120 instead.
+
 ## Full circle: Claude Code playing Doom inside "Claude Code"
 
 With a game hosted (Claude's `/doom:play`, or `./demo.sh coop`), point the lookalike UI at it instead of its own engine:
