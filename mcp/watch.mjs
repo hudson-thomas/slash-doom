@@ -144,6 +144,9 @@ process.stdin.on("data", b => {
   const name = KEYS[s] ?? (s.length === 1 && s >= "0" && s <= "9" ? s : null);
   if (name && sock?.writable) sock.write(`k ${name}\n`);
 });
+// Restore the terminal even when killed: without this, `kill <pid>` leaves the alt screen up and the cursor
+// hidden, and the shell prompt comes back inside it.
+for (const sig of ["SIGINT", "SIGTERM", "SIGHUP"]) process.on(sig, quit);
 out.write("\x1b[?1049h\x1b[?25l\x1b[H\x1b[2J");
 if (isImage()) actions.push(`render mode: ${mode} (inline image, 320x200); press m for blocks`);
 connect(); paint();
