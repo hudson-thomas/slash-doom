@@ -1,12 +1,16 @@
 # /doom (FableNight) — Claude Build Night Hackathon
 
+> These are the ground rules from the build night, kept as they were written for the two agents. The project is
+> now public at `hudson-thomas/slash-doom`; see `README.md` for what it is and how to run it.
+
 A 2-hour hackathon project built with Fable 5.1. **Two people, each with their own Claude Code agent**, are
-pushing to the same repo: `hudson-thomas/slash-doom` (private, owned by hudson-thomas).
-We haven't picked the project yet. When we do, update **Project** below.
+pushing to the same repo: `hudson-thomas/slash-doom`.
 
 ## Project
 
-_TBD. Fill in: one-sentence pitch, stack, how to run it._
+`/doom`: real Claude Code plays real Doom. Stack: doomgeneric + a terminal backend in C (`engine/`), an MCP server and
+watcher in Node (`mcp/`), a Claude narrator (`narrator/`), and an Ink/TypeScript Claude Code lookalike (`ui/`).
+Run: see `README.md`.
 
 ## Ground rules
 
@@ -25,12 +29,11 @@ _TBD. Fill in: one-sentence pitch, stack, how to run it._
 
 | Directory | Owner |
 |-----------|-------|
-| _TBD, e.g. `frontend/`_ | _person A's agent_ |
-| _TBD, e.g. `backend/`_  | _person B's agent_ |
+| `engine/`, `narrator/`, `mcp/` | hudson's agent |
+| `ui/` | matt's agent |
 | Shared: root config, `README.md`, `CLAUDE.md`, lockfiles, shared types/API contract | **both, coordinate first** |
 
-Fill this in once we pick the project. Until it's filled in, ask your human which directory is yours before
-you write code.
+If a directory is not listed, ask your human whose it is before you write code.
 
 ## Git workflow (we push straight to main)
 

@@ -1,28 +1,50 @@
 # /doom
 
-Slash Doom: Doom, with medium effort. (Repo: `slash-doom`, built at Claude Build Night as FableNight.)
+Slash Doom: Claude Code plays Doom, with medium effort.
 
-Real Doom running inside a terminal UI that looks like Claude Code 2.1.
+Type `/doom` in real Claude Code and Claude plays real Doom (doomgeneric + Freedoom): it looks at the screen, presses
+keys through MCP tools, and narrates every move in its calmest spinner voice. You can watch in full colour and grab
+the controls too; everyone drives the same marine. Built in two hours at Claude Build Night (as "FableNight") by two
+people and their Claude Code agents.
 
-- `engine/`: doomgeneric + terminal backend (C). `make -C engine` builds `engine/build/doom-term`.
-- `ui/`: Ink (TypeScript) Claude Code lookalike that hosts the game.
-- `CONTRACT.md`: the stdin/stdout protocol between the two.
+## Play it in Claude Code
 
-## Run
+Needs `node`, `make`, a C compiler, `git`, `curl`, `unzip`. Tested on Linux; macOS should work; on Windows use WSL. From the repo root:
+
+```sh
+make -C engine && (cd mcp && npm install)                          # builds Doom, fetches Freedoom (~24MB)
+claude mcp add --scope local doom -- node "$PWD/mcp/server.mjs"    # registers the Doom tools for this project
+claude
+```
+
+Then `/doom` (or `/doom 3 4` for E1M3 on skill 4). In a second terminal, `node mcp/watch.mjs` shows the game in full
+colour with Claude's moves listed underneath, and your keys work as well: co-op, one marine. More in `mcp/README.md`
+(hosting a game for humans only, multiplayer, the tool list).
+
+## Second act: Doom inside a fake Claude Code
+
+`ui/` is a parody: an Ink (TypeScript) terminal UI made to look like Claude Code, hosting the same game, with Claude
+narrating your run in the spinner line.
 
 ```sh
 cp .env.example .env      # put ANTHROPIC_API_KEY in it for live narration (optional)
-./demo.sh                 # builds engine, starts the UI if ui/ exists, else the raw player
-./demo.sh raw             # raw player with Claude narration, no chrome
+./demo.sh                 # builds engine, starts the lookalike UI
+./demo.sh raw             # raw terminal player with Claude narration, no chrome
+./demo.sh coop            # host a co-op game with no Claude; join with node mcp/watch.mjs
 ```
 
 Raw player keys: arrows/WASD move, `f` fire, space use, Esc menu, backtick cycles render modes
 (blocks, braille, ascii, mono), `g` god mode, `k` all weapons, Ctrl-C quits.
 
-- `mcp/`: MCP server so real Claude Code can play Doom (`doom_look`/`doom_press`). See `mcp/README.md`.
-- `/doom [map] [skill]`: project slash command (`.claude/commands/doom.md`). In real Claude Code, in this repo, with the
-  MCP server registered: Claude plays Doom and narrates it.
-- `narrator/`: `node narrator/wrap.mjs` wraps the engine and adds `N <text>` lines from `claude-fable-5-1`.
+## What's in here
+
+- `engine/`: doomgeneric + terminal backend (C). `make -C engine` builds `engine/build/doom-term`.
+- `mcp/`: MCP server that exposes the game as tools (`doom_start`, `doom_look`, `doom_press`, ...), plus the watcher.
+- `.claude/commands/doom.md`: the `/doom` slash command.
+- `ui/`: the Claude Code lookalike.
+- `narrator/`: `node narrator/wrap.mjs` wraps the engine and adds narration lines from `claude-fable-5-1`.
+- `CONTRACT.md`: the stdin/stdout protocol between engine and front ends.
+- `CLAUDE.md`, `NOTES.md`: the ground rules and the agents' shared log from the build night, kept as they were.
 
 ## Licence
 
