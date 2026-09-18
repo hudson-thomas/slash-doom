@@ -61,19 +61,44 @@ const kittyImage = (png, c, r) => {
 };
 
 // ---------------------------------------------------------------- painting ------------------
-let image = null, imageRows = 0, textRows = [];
+// Nothing here may scroll the screen. A tail line longer than the terminal (Claude's commentary usually is) used
+// to wrap onto a fifth row and push everything up one row per paint; in image modes the pushed-up stat lines
+// piled up around the picture. So every tail row is placed with an absolute cursor move, long actions are
+// word-wrapped here, and autowrap is off for the whole session (see the bottom of the file).
+let image = null, textRows = [];
+const wrap = (text, width) => {                                // greedy word wrap; a word wider than a row is split
+  const lines = [];
+  let cur = "";
+  for (let word of text.trim().split(/ +/)) {
+    while (word.length > width) {
+      if (cur) { lines.push(cur); cur = ""; }
+      lines.push(word.slice(0, width)); word = word.slice(width);
+    }
+    if (cur && cur.length + 1 + word.length > width) { lines.push(cur); cur = ""; }
+    cur = cur ? cur + " " + word : word;
+  }
+  return [...lines, cur];
+};
+// The newest actions in the rows under the stat line, newest at the bottom. The oldest one shown may be cut short.
+const actionRows = (cols) => {
+  const n = STATUS_ROWS - 1, width = Math.max(2, cols - 2), picked = [];
+  for (let i = actions.length - 1; i >= 0 && picked.length < n; i--) {
+    let lines = wrap(actions[i], width);
+    if (picked.length + lines.length > n) {
+      lines = lines.slice(0, n - picked.length);
+      lines.push(lines.pop().slice(0, width - 1) + "…");
+    }
+    picked.unshift(...lines.map((l, j) => (j ? "  " : "\x1b[38;2;215;119;87m⏺\x1b[0m ") + l));
+  }
+  return picked;
+};
 const paint = (rows) => {
   if (rows) textRows = rows;
-  const box = (out.rows || 24) - STATUS_ROWS;
-  const tail = [
-    "\x1b[0m\x1b[K" + stat,
-    ...actions.slice(-3).map(a => "\x1b[K\x1b[38;2;215;119;87m⏺\x1b[0m " + a),
-  ];
-  if (isImage()) {
-    out.write("\x1b[H" + (image ?? "") + `\x1b[${Math.max(imageRows, box) + 1};1H` + tail.join("\n"));
-    return;
-  }
-  out.write("\x1b[H" + (textRows.length ? textRows.join("\n") + "\n" : "") + tail.join("\n"));
+  const cols = out.columns || 80, box = (out.rows || 24) - STATUS_ROWS;
+  const tail = [stat.slice(0, cols), ...actionRows(cols)];
+  let s = "\x1b[H" + (isImage() ? (image ?? "") : textRows.slice(0, box).join("\n"));
+  for (let i = 0; i < STATUS_ROWS; i++) s += `\x1b[${box + 1 + i};1H\x1b[0m\x1b[2K` + (tail[i] ?? "");
+  out.write(s);
 };
 const onPixels = (rgb, w, h) => {
   pixPending = false;
@@ -82,7 +107,6 @@ const onPixels = (rgb, w, h) => {
   const h2 = Math.round(w * 3 / 4);                            // 320x200 -> 320x240, Doom's intended 4:3, so the
   let png;                                                     // terminal's own cell metrics get the aspect right
   try { png = encodePng(resampleRgb(rgb, w, h, w, h2), w, h2, 3); } catch { return; }  // level 3: ~37KB in ~2ms
-  imageRows = r;
   image = (pad ? `\x1b[${pad + 1}G` : "") + (mode === "kitty" ? kittyImage(png, c, r) : itermImage(png, c, r));
   paint();
 };
@@ -102,7 +126,8 @@ const connect = () => {
   sock.on("data", onData);
 };
 const size = () => sock?.writable && sock.write(`s ${out.columns || 80} ${(out.rows || 24) - STATUS_ROWS}\n`);
-out.on("resize", () => { size(); out.write("\x1b[2J"); paint(); });
+// Drop the last image on resize: drawn at the old size it could run past the bottom row and scroll.
+out.on("resize", () => { size(); image = null; out.write("\x1b[2J"); paint(); });
 setInterval(askPixels, 50).unref();                            // image modes pull frames; blocks are pushed
 
 let grabbing = 0, rows = [], pixHdr = null;
@@ -147,7 +172,7 @@ process.stdin.on("data", b => {
 // Restore the terminal even when killed: without this, `kill <pid>` leaves the alt screen up and the cursor
 // hidden, and the shell prompt comes back inside it.
 for (const sig of ["SIGINT", "SIGTERM", "SIGHUP"]) process.on(sig, quit);
-out.write("\x1b[?1049h\x1b[?25l\x1b[H\x1b[2J");
+out.write("\x1b[?1049h\x1b[?25l\x1b[?7l\x1b[H\x1b[2J");          // alt screen, hide cursor, autowrap off
 if (isImage()) actions.push(`render mode: ${mode} (inline image, 320x200); press m for blocks`);
 connect(); paint();
-function quit() { out.write("\x1b[?25h\x1b[?1049l"); process.exit(0); }
+function quit() { out.write("\x1b[?7h\x1b[?25h\x1b[?1049l"); process.exit(0); }
