@@ -18,9 +18,20 @@ rl.on("line", l => {
   else if (c === "c" && a[0] === "die") { health = 0; pending.push("E hurt 100", "E dead"); setTimeout(() => { health = 100; pending.push("E respawn"); }, 3000); }
   else if (c === "c") pending.push(a[0] === "iddqd" ? "L Degreelessness Mode On" : `L typed ${a[0]}`);
   else if (c === "a") { const out = ["A 24"]; for (let r = 0; r < 24; r++) out.push((r < 12 ? "=" : "-").repeat(80)); pending.push(...out); }
+  else if (c === "p") pending.push(`P ${PIX_W} ${PIX_H}`, pixels());
   else if (c === "q") process.exit(0);
 });
 rl.on("close", () => process.exit(0));
+
+const PIX_W = 320, PIX_H = 200;        // raw "P w h" frame: same test pattern at Doom's native resolution
+const pixels = () => {
+  const buf = Buffer.alloc(PIX_W * PIX_H * 3);
+  for (let y = 0; y < PIX_H; y++) for (let x = 0; x < PIX_W; x++) {
+    const [r, g, b] = px(x / PIX_W, y / PIX_H, tics), i = (y * PIX_W + x) * 3;
+    buf[i] = r | 0; buf[i + 1] = g | 0; buf[i + 2] = b | 0;
+  }
+  return buf.toString("base64");
+};
 
 const px = (x, y, t) => {            // test pattern: sky, floor, sweeping "wall"
   const horizon = 0.55, wall = 0.5 + 0.3 * Math.sin(t / 20 + x * 6);

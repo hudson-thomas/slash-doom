@@ -45,9 +45,13 @@ static char last_msg[256] = "";
 static int last_state = -1, last_gs = -1, last_kills = 0, last_health = 100;
 static volatile int want_snapshot = 0, want_pixels = 0;
 
+/* Milliseconds since the engine started. CLOCK_MONOTONIC counts from boot, so after ~24.8 days of uptime a raw
+ * uint32 reading is >= 2^31 and the (int32_t)(t - last_frame_ms) check in DG_DrawFrame is negative forever. */
 static uint32_t now_ms(void) {
+    static time_t base = 0;
     struct timespec ts; clock_gettime(CLOCK_MONOTONIC, &ts);
-    return (uint32_t)(ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
+    if (!base) base = ts.tv_sec;
+    return (uint32_t)((ts.tv_sec - base) * 1000 + ts.tv_nsec / 1000000);
 }
 
 static void out_write(const char *buf, size_t n) {

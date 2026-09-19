@@ -20,7 +20,9 @@ claude
 ```
 
 Then `/doom` (or `/doom 3 4` for E1M3 on skill 4). In a second terminal, `node mcp/watch.mjs` shows the game in full
-colour with Claude's moves listed underneath, and your keys work as well: co-op, one marine. More in `mcp/README.md`
+colour with Claude's moves listed underneath, and your keys work as well: co-op, one marine. On WezTerm,
+iTerm2, Kitty or Ghostty the watcher draws the real 320x200 framebuffer as an inline image instead of half-blocks
+(`m` cycles, `--mode=` forces). More in `mcp/README.md`
 (hosting a game for humans only, multiplayer, the tool list).
 
 ## Second act: Doom inside a fake Claude Code

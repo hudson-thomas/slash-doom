@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import fs from "node:fs";
 import { z } from "zod";
-import zlib from "node:zlib";
+import { encodePng } from "./png.mjs";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
@@ -105,19 +105,6 @@ function stopEngine() { if (eng) { try { send("q"); } catch {} setTimeout(() => 
 const send = l => { if (eng?.stdin.writable) eng.stdin.write(l + "\n"); };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-// Minimal PNG encoder (RGB8, filter 0) using zlib; scaled 2x horizontally-aware? No: emit native 320x200, Claude reads it fine.
-function encodePng(rgb, w, h) {
-  const raw = Buffer.alloc((w * 3 + 1) * h);
-  for (let y = 0; y < h; y++) { raw[y * (w * 3 + 1)] = 0; rgb.copy(raw, y * (w * 3 + 1) + 1, y * w * 3, (y + 1) * w * 3); }
-  const chunk = (type, data) => {
-    const len = Buffer.alloc(4); len.writeUInt32BE(data.length);
-    const td = Buffer.concat([Buffer.from(type, "ascii"), data]);
-    const crc = Buffer.alloc(4); crc.writeUInt32BE(zlib.crc32(td) >>> 0);
-    return Buffer.concat([len, td, crc]);
-  };
-  const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(w, 0); ihdr.writeUInt32BE(h, 4); ihdr[8] = 8; ihdr[9] = 2; ihdr[10] = 0; ihdr[11] = 0; ihdr[12] = 0;
-  return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk("IHDR", ihdr), chunk("IDAT", zlib.deflateSync(raw, { level: 6 })), chunk("IEND", Buffer.alloc(0))]);
-}
 async function grabPng() {
   if (!eng) return null;
   const p = new Promise(r => st.pngWaiters.push(r));
